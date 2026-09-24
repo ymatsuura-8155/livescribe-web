@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScribe — リアルタイム字幕・閲覧モニター</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --color-highlighter-yellow: #e4f222;
+      --color-ink: #0c0a08;
+      --color-paper: #ffffff;
+      --color-bone: #f4f2f0;
+      --color-ash: #6d6c6b;
+      --color-hairline: #e5e7eb;
+      --font-main: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", 'Noto Sans JP', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+
+    body {
+      background-color: var(--color-bone);
+      color: var(--color-ink);
+      font-family: var(--font-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono-ramp {
+      font-family: var(--font-mono);
+    }
+
+    .editorial-label {
+      font-size: 10px;
+      line-height: 2;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .card-ramp {
+      background-color: var(--color-paper);
+      border: 1px solid var(--color-hairline);
+      border-radius: 16px;
+    }
+
+    .btn-highlighter {
+      background-color: var(--color-highlighter-yellow);
+      color: var(--color-ink);
+      border-radius: 6px;
+      transition: opacity 0.2s ease, transform 0.1s ease;
+    }
+    .btn-highlighter:hover {
+      opacity: 0.92;
+    }
+    .btn-highlighter:active {
+      transform: scale(0.98);
+    }
+
+    .btn-ghost-ramp {
+      background-color: transparent;
+      color: var(--color-ink);
+      border: 1px solid var(--color-hairline);
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+    .btn-ghost-ramp:hover {
+      background-color: var(--color-bone);
+    }
+
+    .scrollbar-ramp::-webkit-scrollbar {
+      width: 6px;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-thumb {
+      background: #e5e7eb;
+      border-radius: 4px;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-thumb:hover {
+      background: #c9cbcf;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-[#e4f222] selection:text-[#0c0a08]">
+
+  <!-- Top Slim Bar -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e5e7eb]">
+    <div class="max-w-[1200px] mx-auto h-14 px-4 sm:px-6 flex items-center justify-between">
+      
+      <!-- Brand & Status -->
+      <div class="flex items-center space-x-3">
+        <div class="w-6 h-6 bg-[#0c0a08] text-[#e4f222] flex items-center justify-center font-serif text-xs rounded-[5px] select-none">
+          R
+        </div>
+        <span class="text-base tracking-tight font-medium text-[#0c0a08]">LiveScribe</span>
+        <span class="text-[#e5e7eb]">/</span>
+        <span class="editorial-label px-2 py-0.5 rounded-[4px] bg-[#f4f2f0] text-[#6d6c6b]">閲覧モニター</span>
+        <div class="hidden sm:flex items-center space-x-1.5 pl-2 text-xs">
+          <span id="live-indicator" class="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span>
+          <span id="sync-status" class="text-xs text-[#6d6c6b]">同期待機中</span>
+        </div>
+      </div>
+
+      <!-- Controls: Room, Key & Font adjustment -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        
+        <!-- Room Selector Trigger -->
+        <div class="flex items-center h-8 px-2.5 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
+          <span class="editorial-label text-[#6d6c6b] mr-1.5 hidden sm:inline">ROOM:</span>
+          <span id="current-room-text" class="font-medium text-[#0c0a08]">general</span>
+          <button id="btn-edit-room" title="ルームや合言葉を変更" class="ml-2 text-[#6d6c6b] hover:text-[#0c0a08]">
+            <i class="fa-solid fa-sliders text-[11px]"></i>
+          </button>
+        </div>
+
+        <!-- Lock Status Indicator -->
+        <div id="key-status-badge" class="hidden items-center h-8 px-2.5 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
+          <i class="fa-solid fa-lock text-[10px] mr-1.5 text-[#0c0a08]"></i>
+          <span class="editorial-label">暗号化解除済</span>
+        </div>
+
+        <!-- Font Zoom Controls -->
+        <div class="flex items-center border border-[#e5e7eb] rounded-[6px] overflow-hidden bg-white">
+          <button id="btn-zoom-out" class="px-2 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0] border-r border-[#e5e7eb]" title="文字を小さく">
+            A-
+          </button>
+          <button id="btn-zoom-in" class="px-2 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0]" title="文字を大きく">
+            A+
+          </button>
+        </div>
+
+        <!-- Copy All -->
+        <button id="btn-copy-feed" class="btn-ghost-ramp h-8 px-2.5 sm:px-3 text-xs flex items-center space-x-1.5" title="ここまでの発言全文をコピー">
+          <i class="fa-regular fa-copy text-[11px]"></i>
+          <span class="hidden md:inline">全文コピー</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Auto-scroll & Filter sub-bar -->
+  <div class="bg-[#1a1919] text-white py-2 px-4 sm:px-6 border-b border-[#0c0a08]">
+    <div class="max-w-[1200px] mx-auto flex items-center justify-between text-xs">
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2">
+          <span class="editorial-label text-[#6d6c6b]">記録件数:</span>
+          <span id="log-count" class="text-white font-medium">0 件</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="editorial-label text-[#6d6c6b]">最新受信:</span>
+          <span id="last-updated-time" class="text-[#e4f222]">--:--:--</span>
+        </div>
+      </div>
+      <label class="flex items-center space-x-1.5 cursor-pointer text-neutral-300 hover:text-white select-none">
+        <input id="cb-autoscroll" type="checkbox" checked class="rounded border-neutral-600 bg-neutral-800 text-[#e4f222] focus:ring-0">
+        <span class="editorial-label">自動スクロール</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Main Stream Feed -->
+  <main class="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-6 flex flex-col">
+    
+    <div class="card-ramp flex-1 flex flex-col overflow-hidden bg-white shadow-sm h-[calc(100vh-175px)]">
+      
+      <!-- Scrollable Message Stream -->
+      <div id="feed-scroll-container" class="flex-1 p-4 sm:p-8 overflow-y-auto space-y-4 scrollbar-ramp bg-white">
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-8">
+          <div class="w-14 h-14 rounded-2xl bg-[#f4f2f0] border border-[#e5e7eb] flex items-center justify-center text-xl text-[#6d6c6b] mb-4">
+            <i class="fa-solid fa-volume-high"></i>
+          </div>
+          <h3 class="text-base font-medium text-[#0c0a08] mb-1.5">発言の受信を待機しています</h3>
+          <p class="text-xs text-[#6d6c6b] max-w-md leading-relaxed">
+            ホスト（マイク側）が発言を開始すると、この画面へリアルタイムにテキストが流れてきます。このまま画面を開いてお待ちください。
+          </p>
+        </div>
+
+        <!-- Dynamic Timeline Entries -->
+        <div id="messages-list" class="space-y-3.5 hidden"></div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Room & Encryption Key Config Modal -->
+  <div id="settings-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="card-ramp max-w-md w-full p-6 space-y-5 bg-white border border-[#e5e7eb] shadow-xl">
+      <div class="flex items-center justify-between pb-3 border-b border-[#e5e7eb]">
+        <h3 class="text-sm font-medium text-[#0c0a08]">閲覧ルーム・合言葉の設定</h3>
+        <button id="btn-close-settings" class="text-xs text-[#6d6c6b] hover:text-[#0c0a08]">
+          [ 閉じる ]
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block editorial-label text-[#6d6c6b] mb-1">ルームID</label>
+          <input id="input-modal-room" type="text" placeholder="例: general" class="w-full px-3 py-2 text-xs border border-[#e5e7eb] rounded-[8px] focus:outline-none focus:border-[#0c0a08]">
+        </div>
+        <div>
+          <label class="block editorial-label text-[#6d6c6b] mb-1">合言葉・暗号キー (任意)</label>
+          <input id="input-modal-key" type="password" placeholder="ホストから共有された合言葉" class="w-full px-3 py-2 text-xs border border-[#e5e7eb] rounded-[8px] focus:outline-none focus:border-[#0c0a08]">
+          <p class="text-[11px] text-[#6d6c6b] mt-1">※ホスト側が暗号化している場合、合言葉を入力すると本文が復号されます。</p>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2">
+        <button id="btn-apply-settings" class="btn-highlighter px-5 py-2 text-xs font-medium">
+          適用して接続
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-6 opacity-0 pointer-events-none transition-all duration-200 bg-[#0c0a08] text-white px-4 py-2.5 rounded-[6px] flex items-center space-x-2 text-xs">
+    <span class="w-2 h-2 rounded-full bg-[#e4f222]"></span>
+    <span id="toast-text">通知</span>
+  </div>
+
+  <!-- Firebase & Realtime Stream Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWAlwVwJ9HHSlygzYpUPPM6CloWdohcO8",
+      authDomain: "livescribe-demo.firebaseapp.com",
+      projectId: "livescribe-demo",
+      storageBucket: "livescribe-demo.firebasestorage.app",
+      messagingSenderId: "946069708273",
+      appId: "1:946069708273:web:b97fd5c6ec850c41ccb850"
+    };
+
+    // Parse URL Parameters
+    const params = new URLSearchParams(window.location.search);
+    let currentRoom = (params.get('room') || 'general').trim().toLowerCase();
+    let currentKey = (params.get('key') || '').trim();
+
+    // DOM Elements
+    const roomText = document.getElementById('current-room-text');
+    const syncStatus = document.getElementById('sync-status');
+    const liveIndicator = document.getElementById('live-indicator');
+    const keyBadge = document.getElementById('key-status-badge');
+    const logCountEl = document.getElementById('log-count');
+    const lastTimeEl = document.getElementById('last-updated-time');
+    const messagesList = document.getElementById('messages-list');
+    const emptyState = document.getElementById('empty-state');
+    const scrollContainer = document.getElementById('feed-scroll-container');
+    const autoScrollCb = document.getElementById('cb-autoscroll');
+    const settingsModal = document.getElementById('settings-modal');
+    const inputRoom = document.getElementById('input-modal-room');
+    const inputKey = document.getElementById('input-modal-key');
+
+    let transcriptItems = [];
+    let currentFontSizeRem = 1.0; // 閲覧用なので少し大きめの16px基準
+
+    roomText.textContent = currentRoom;
+    inputRoom.value = currentRoom;
+    inputKey.value = currentKey;
+    if (currentKey) keyBadge.classList.remove('hidden');
+
+    // Web Crypto Decryption Helper (AES-GCM)
+    async function deriveCryptoKey(passphrase) {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(passphrase),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+      return crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: enc.encode("livescribe-fixed-salt-2024"),
+          iterations: 100000,
+          hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+    }
+
+    async function decryptText(encryptedString, passphrase) {
+      if (!encryptedString || !encryptedString.startsWith('enc:')) {
+        return encryptedString;
+      }
+      if (!passphrase) {
+        return "🔒 [暗号化されています。右上の設定アイコンから合言葉を入力してください]";
+      }
+      try {
+        const parts = encryptedString.substring(4).split(':');
+        if (parts.length !== 2) return encryptedString;
+        const iv = Uint8Array.from(atob(parts[0]), c => c.charCodeAt(0));
+        const ciphertext = Uint8Array.from(atob(parts[1]), c => c.charCodeAt(0));
+        const key = await deriveCryptoKey(passphrase);
+        const decrypted = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          ciphertext
+        );
+        return new TextDecoder().decode(decrypted);
+      } catch (err) {
+        return "🔒 [合言葉が一致しないため復号できません]";
+      }
+    }
+
+    // Auto-scroll handler
+    function scrollToBottom(smooth = true) {
+      if (!autoScrollCb.checked) return;
+      setTimeout(() => {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight + 1000,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+        const lastEl = messagesList.lastElementChild;
+        if (lastEl) {
+          lastEl.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+        }
+      }, 50);
+    }
+
+    // Render transcript entries
+    async function renderEntries() {
+      logCountEl.textContent = `${transcriptItems.length} 件`;
+      
+      if (transcriptItems.length === 0) {
+        messagesList.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      messagesList.classList.remove('hidden');
+      messagesList.innerHTML = '';
+
+      for (let i = 0; i < transcriptItems.length; i++) {
+        const item = transcriptItems[i];
+        const displayText = await decryptText(item.text, currentKey);
+
+        const card = document.createElement('div');
+        card.className = "p-4 sm:p-5 rounded-xl bg-[#fbfaf8] border border-[#e5e7eb] hover:border-[#6d6c6b] transition-all";
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2.5">
+              <span class="inline-block w-2 h-2 rounded-full bg-[#0c0a08]"></span>
+              <span class="text-xs sm:text-sm font-semibold text-[#0c0a08]">${escapeHtml(item.speaker || '話者')}</span>
+              <span class="text-[11px] text-[#6d6c6b] font-mono-ramp">${escapeHtml(item.timestamp || '')}</span>
+            </div>
+            <button data-idx="${i}" class="btn-copy-single text-[10px] text-[#6d6c6b] hover:text-[#0c0a08] px-2 py-0.5 border border-[#e5e7eb] rounded bg-white" title="この行をコピー">
+              コピー
+            </button>
+          </div>
+          <p class="text-[#0c0a08] leading-relaxed break-words pl-4 border-l-2 border-[#e4f222]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">
+            ${escapeHtml(displayText)}
+          </p>
+        `;
+        messagesList.appendChild(card);
+      }
+
+      // Add individual copy listeners
+      messagesList.querySelectorAll('.btn-copy-single').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-idx'), 10);
+          if (transcriptItems[idx]) {
+            const dec = await decryptText(transcriptItems[idx].text, currentKey);
+            copyText(`[${transcriptItems[idx].timestamp}] ${transcriptItems[idx].speaker}: ${dec}`);
+            showToast("発言をコピーしました");
+          }
+        });
+      });
+
+      if (transcriptItems.length > 0) {
+        lastTimeEl.textContent = transcriptItems[transcriptItems.length - 1].timestamp || '--:--:--';
+      }
+
+      scrollToBottom(true);
+    }
+
+    // Connect to Firestore
+    async function startListening() {
+      try {
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        await signInAnonymously(auth);
+        syncStatus.textContent = "リアルタイム同期中";
+        liveIndicator.className = "w-2 h-2 rounded-full bg-[#10b981] animate-pulse";
+
+        const col = collection(db, 'transcripts');
+        onSnapshot(col, (snapshot) => {
+          const docs = [];
+          snapshot.forEach((snap) => {
+            const data = snap.data();
+            const itemRoom = (data.roomId || 'general').trim().toLowerCase();
+            if (itemRoom === currentRoom) {
+              docs.push({ id: snap.id, ...data });
+            }
+          });
+
+          docs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+          transcriptItems = docs;
+          renderEntries();
+        }, (err) => {
+          console.error(err);
+          syncStatus.textContent = "同期エラー";
+          liveIndicator.className = "w-2 h-2 rounded-full bg-[#ef4444]";
+          showToast("同期中にエラーが発生しました");
+        });
+      } catch (e) {
+        console.error(e);
+        syncStatus.textContent = "接続待機";
+      }
+    }
+
+    // Helper functions
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function copyText(str) {
+      const ta = document.createElement("textarea");
+      ta.value = str;
+      ta.style.position = "fixed";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        if (navigator.clipboard) navigator.clipboard.writeText(str);
+      }
+      document.body.removeChild(ta);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('translate-y-6', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-6', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2400);
+    }
+
+    // Font size controls
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      currentFontSizeRem = Math.min(1.75, currentFontSizeRem + 0.125);
+      renderEntries();
+    });
+
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      currentFontSizeRem = Math.max(0.875, currentFontSizeRem - 0.125);
+      renderEntries();
+    });
+
+    // Copy all content
+    document.getElementById('btn-copy-feed').addEventListener('click', async () => {
+      if (transcriptItems.length === 0) {
+        showToast("コピーする発言がありません");
+        return;
+      }
+      const lines = [];
+      for (const item of transcriptItems) {
+        const dec = await decryptText(item.text, currentKey);
+        lines.push(`[${item.timestamp}] ${item.speaker}: ${dec}`);
+      }
+      copyText(lines.join('\n'));
+      showToast("全文をクリップボードにコピーしました");
+    });
+
+    // Modal Events
+    document.getElementById('btn-edit-room').addEventListener('click', () => {
+      settingsModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-close-settings').addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+    });
+
+    document.getElementById('btn-apply-settings').addEventListener('click', () => {
+      currentRoom = inputRoom.value.trim().toLowerCase() || 'general';
+      currentKey = inputKey.value.trim();
+
+      roomText.textContent = currentRoom;
+      if (currentKey) {
+        keyBadge.classList.remove('hidden');
+      } else {
+        keyBadge.classList.add('hidden');
+      }
+
+      // Update URL without reload
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.set('room', currentRoom);
+        if (currentKey) u.searchParams.set('key', currentKey);
+        else u.searchParams.delete('key');
+        window.history.pushState({}, '', u);
+      } catch (err) {}
+
+      settingsModal.classList.add('hidden');
+      showToast(`ルームを適用しました: ${currentRoom}`);
+      startListening();
+    });
+
+    // Start
+    window.addEventListener('DOMContentLoaded', () => {
+      startListening();
+    });
+  </script>
+</body>
+</html>
