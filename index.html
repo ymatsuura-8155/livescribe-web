@@ -647,24 +647,14 @@
 
     async function initFirebase() {
       try {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
-        let firebaseConfig = {
+        const firebaseConfig = {
           apiKey: "AIzaSyCWAlwVwJ9HHSlygzYpUPPM6CloWdohcO8",
-  authDomain: "livescribe-demo.firebaseapp.com",
-  projectId: "livescribe-demo",
-  storageBucket: "livescribe-demo.firebasestorage.app",
-  messagingSenderId: "946069708273",
-  appId: "1:946069708273:web:b97fd5c6ec850c41ccb850"
+          authDomain: "livescribe-demo.firebaseapp.com",
+          projectId: "livescribe-demo",
+          storageBucket: "livescribe-demo.firebasestorage.app",
+          messagingSenderId: "946069708273",
+          appId: "1:946069708273:web:b97fd5c6ec850c41ccb850"
         };
-        if (typeof __firebase_config !== 'undefined') {
-          firebaseConfig = JSON.parse(__firebase_config);
-        } else {
-          firebaseConfig = {
-            apiKey: "demo-key",
-            authDomain: "demo.firebaseapp.com",
-            projectId: "demo-project"
-          };
-        }
 
         const app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -702,9 +692,8 @@
         return;
       }
 
-      const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
-      // 単一の公認コレクション 'transcripts' から取得し、メモリ上で roomId を完全分離
-      const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+      // ルーム専用の独立コレクションから取得
+      const transcriptsCol = collection(db, 'transcripts');
 
       unsubscribeSnapshot = onSnapshot(transcriptsCol, (snapshot) => {
         const docs = [];
@@ -745,8 +734,7 @@
 
       if (db && currentUser) {
         try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
-          const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+          const transcriptsCol = collection(db, 'transcripts');
           await addDoc(transcriptsCol, newEntry);
         } catch (err) {
           console.error("Firestore write fallback:", err);
@@ -764,8 +752,7 @@
     window.clearAllTranscriptEntries = async function() {
       if (db && currentUser) {
         try {
-          const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
-          const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+          const transcriptsCol = collection(db, 'transcripts');
           const snapshot = await getDocs(transcriptsCol);
           const deletePromises = [];
           
@@ -774,7 +761,7 @@
             const data = docSnap.data();
             const itemRoom = (data.roomId || 'general').trim().toLowerCase();
             if (itemRoom === currentRoomId) {
-              deletePromises.push(deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transcripts', docSnap.id)));
+              deletePromises.push(deleteDoc(doc(db, 'transcripts', docSnap.id)));
             }
           });
           await Promise.all(deletePromises);
