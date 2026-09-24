@@ -123,252 +123,244 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col selection:bg-[#e4f222] selection:text-[#0c0a08]">
+<body class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col selection:bg-[#e4f222] selection:text-[#0c0a08]">
 
-  <!-- Top Announcement Bar (Ramp Style: 40px height, hairline bottom) -->
-  <div class="h-10 bg-white border-b border-[#e5e7eb] px-6 flex items-center justify-between text-[13px] text-[#6d6c6b]">
-    <div class="max-w-[1200px] w-full mx-auto flex items-center justify-between">
+  <!-- Top Announcement Bar (Ramp Style: 36px height) -->
+  <div class="h-9 shrink-0 bg-white border-b border-[#e5e7eb] px-6 flex items-center justify-between text-xs text-[#6d6c6b]">
+    <div class="max-w-[1400px] w-full mx-auto flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="inline-block w-2 h-2 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
-        <span>リアルタイム音声認識インテリジェンス。発話を即座にテキスト化し関係者へ同期します。</span>
+        <span class="truncate">リアルタイム音声認識インテリジェンス。発話を即座にテキスト化し関係者へ同期します。</span>
       </div>
-      <div class="hidden sm:flex items-center space-x-3 text-xs">
+      <div class="hidden sm:flex items-center space-x-3 text-xs shrink-0">
         <span class="editorial-label text-[#6d6c6b]">接続状態:</span>
         <span id="sync-status-text" class="text-[#0c0a08] font-normal">接続完了</span>
       </div>
     </div>
   </div>
 
-  <!-- Sticky Navigation Bar (102px total cluster, inset highlight, white canvas) -->
-  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e5e7eb]" style="box-shadow: rgba(255, 255, 255, 0.6) 0px 0px 2px 0px inset;">
-    <div class="max-w-[1200px] mx-auto h-[62px] px-6 flex items-center justify-between">
+  <!-- Sticky Navigation Bar (58px height) -->
+  <header class="h-[58px] shrink-0 z-40 bg-white border-b border-[#e5e7eb]">
+    <div class="max-w-[1400px] mx-auto h-full px-6 flex items-center justify-between">
       <!-- Brand & Section -->
       <div class="flex items-center space-x-3">
         <div class="w-7 h-7 bg-[#0c0a08] text-[#e4f222] flex items-center justify-center font-serif text-sm rounded-[6px] select-none">
           R
         </div>
-        <span class="text-[18px] tracking-tight font-normal text-[#0c0a08]">LiveScribe</span>
+        <span class="text-base tracking-tight font-normal text-[#0c0a08]">LiveScribe</span>
         <span class="text-[#e5e7eb]">/</span>
         <span class="editorial-label text-[#6d6c6b]">デスクコンソール</span>
       </div>
 
       <!-- Center: View Mode Tabs -->
       <div class="hidden md:flex items-center space-x-1 p-1 bg-[#f4f2f0] rounded-[8px] border border-[#e5e7eb] text-xs">
-        <button data-view="split" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all bg-[#0c0a08] text-white">
+        <button data-view="split" class="tab-view-btn px-3 py-1 rounded-[6px] transition-all bg-[#0c0a08] text-white">
           <span>分割表示</span>
         </button>
-        <button data-view="feed" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
+        <button data-view="feed" class="tab-view-btn px-3 py-1 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
           <span>フィード専用</span>
         </button>
-        <button data-view="controls" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
+        <button data-view="controls" class="tab-view-btn px-3 py-1 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
           <span>操作パネル</span>
         </button>
       </div>
 
       <!-- Room & Actions -->
-      <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2.5">
         <!-- Room Tag & Key Info -->
-        <div class="flex items-center h-8 px-3 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
-          <span class="editorial-label text-[#6d6c6b] mr-1.5">ルーム:</span>
+        <div class="flex items-center h-8 px-2.5 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
+          <span class="editorial-label text-[#6d6c6b] mr-1 hidden sm:inline">ROOM:</span>
           <span id="current-room-badge" class="font-medium text-[#0c0a08]">general</span>
-          <button id="btn-copy-room-link" title="閲覧用URL（viewer.html）をコピー" class="ml-2.5 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors flex items-center space-x-1">
+          <button id="btn-copy-room-link" title="閲覧用URL（viewer.html）をコピー" class="ml-2 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors flex items-center space-x-1">
             <i class="fa-regular fa-clone text-xs"></i>
-            <span class="editorial-label hidden sm:inline text-[9px]">共有リンク</span>
+            <span class="editorial-label hidden lg:inline text-[9px]">共有リンク</span>
           </button>
         </div>
 
         <!-- Key status badge if key is set -->
-        <div id="header-key-badge" class="hidden sm:flex items-center h-8 px-2.5 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
-          <i class="fa-solid fa-lock text-[10px] mr-1.5 text-[#0c0a08]"></i>
-          <span id="header-key-text" class="font-mono text-[11px] truncate max-w-[80px]">key</span>
+        <div id="header-key-badge" class="hidden sm:flex items-center h-8 px-2 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
+          <i class="fa-solid fa-lock text-[10px] mr-1 text-[#0c0a08]"></i>
+          <span id="header-key-text" class="font-mono text-[11px] truncate max-w-[70px]">key</span>
         </div>
 
-        <!-- Highlighter Demo Action -->
-        <button id="btn-copy-all" class="btn-outlined h-8 px-3 text-xs flex items-center space-x-1.5">
+        <!-- Action: Copy All -->
+        <button id="btn-copy-all" class="btn-outlined h-8 px-2.5 text-xs flex items-center space-x-1.5">
           <i class="fa-regular fa-copy text-[11px]"></i>
-          <span>全文コピー</span>
+          <span class="hidden sm:inline">全文コピー</span>
         </button>
 
-        <!-- Clear Action in Header -->
-        <button id="btn-open-clear-modal" class="btn-ghost-ramp h-8 px-3 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="会話ログを消去">
+        <!-- Action: Clear -->
+        <button id="btn-open-clear-modal" class="btn-ghost-ramp h-8 px-2.5 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="会話ログを消去">
           <i class="fa-regular fa-trash-can text-[11px]"></i>
-          <span>会話をクリア</span>
+          <span class="hidden sm:inline">会話をクリア</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- Live Counter Dark Band (Ramp signature inverted strip) -->
-  <div class="bg-[#1a1919] text-white py-2.5 px-6 border-b border-[#0c0a08]">
-    <div class="max-w-[1200px] mx-auto flex items-center justify-between text-xs">
-      <div class="flex items-center space-x-6 overflow-x-auto">
-        <div class="flex items-center space-x-2 shrink-0">
+  <!-- Live Counter Dark Band (36px height) -->
+  <div class="h-9 shrink-0 bg-[#1a1919] text-white px-6 border-b border-[#0c0a08] flex items-center">
+    <div class="max-w-[1400px] w-full mx-auto flex items-center justify-between text-xs">
+      <div class="flex items-center space-x-5 overflow-x-auto">
+        <div class="flex items-center space-x-1.5 shrink-0">
           <span class="editorial-label text-[#6d6c6b]">接続ルーム:</span>
-          <span class="text-[#e4f222] text-[13px]" id="ticker-room-name">general</span>
+          <span class="text-[#e4f222] text-xs" id="ticker-room-name">general</span>
         </div>
-        <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center space-x-1.5 shrink-0">
           <span class="editorial-label text-[#6d6c6b]">表示:</span>
-          <span id="ticker-view-mode" class="text-white text-[13px]">分割表示</span>
+          <span id="ticker-view-mode" class="text-white text-xs">分割表示</span>
         </div>
-        <div class="flex items-center space-x-2 shrink-0 md:hidden">
+        <div class="flex items-center space-x-1.5 shrink-0 md:hidden">
           <button data-view="split" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-[#e4f222]">分割</button>
           <button data-view="feed" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">閲覧</button>
           <button data-view="controls" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">操作</button>
         </div>
-        <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center space-x-1.5 shrink-0">
           <span class="editorial-label text-[#6d6c6b]">記録件数:</span>
-          <span id="ticker-entry-count" class="text-white text-[13px]">0 件</span>
+          <span id="ticker-entry-count" class="text-white text-xs">0 件</span>
         </div>
-        <div class="flex items-center space-x-2 shrink-0">
+        <div class="flex items-center space-x-1.5 shrink-0">
           <span class="editorial-label text-[#6d6c6b]">音声入力状態:</span>
-          <span id="ticker-audio-status" class="text-[#6d6c6b] text-[13px]">待機中</span>
+          <span id="ticker-audio-status" class="text-[#6d6c6b] text-xs">待機中</span>
         </div>
       </div>
       <div class="hidden md:flex items-center space-x-2 text-[#6d6c6b]">
         <span class="editorial-label">ACCENT:</span>
-        <span class="w-2.5 h-2.5 rounded-[2px] bg-[#e4f222]"></span>
+        <span class="w-2 h-2 rounded-[2px] bg-[#e4f222]"></span>
         <span class="editorial-label text-white">#E4F222</span>
       </div>
     </div>
   </div>
 
-  <!-- Main Grid Layout (Max width 1200px, 20-24px card padding, 16px radius) -->
-  <main id="main-content-area" class="flex-1 max-w-[1200px] w-full mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6">
+  <!-- Main Viewport Layout (Desktop: Fixed height, No window scroll) -->
+  <main id="main-content-area" class="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row gap-5 lg:overflow-hidden">
 
-    <!-- Left Column: Audio Controls & Room Configuration -->
-    <aside id="controls-column" class="w-full lg:w-[330px] flex flex-col space-y-5 shrink-0">
+    <!-- Left Column: Audio Controls & Room Configuration (Fixed or standalone scroll) -->
+    <aside id="controls-column" class="w-full lg:w-[320px] flex flex-col space-y-4 shrink-0 lg:overflow-y-auto scrollbar-ramp pr-0.5">
       
-      <!-- Audio Capture Card (16px radius, border elevation) -->
-      <div class="card-ramp p-5 space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-[#e5e7eb]">
+      <!-- Audio Capture Card -->
+      <div class="card-ramp p-4 space-y-3.5">
+        <div class="flex items-center justify-between pb-2 border-b border-[#e5e7eb]">
           <span class="editorial-label text-[#0c0a08]">音声レコーダー</span>
           <span id="mic-status-badge" class="editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#6d6c6b]">待機中</span>
         </div>
 
         <!-- Big Highlight Mic Button -->
-        <div class="py-2 flex flex-col items-center justify-center space-y-3">
-          <button id="btn-toggle-rec" class="btn-highlighter w-full py-3.5 px-4 text-sm flex items-center justify-center space-x-2.5 shadow-sm">
-            <i class="fa-solid fa-microphone text-base"></i>
+        <div class="flex flex-col items-center justify-center space-y-2">
+          <button id="btn-toggle-rec" class="btn-highlighter w-full py-3 px-4 text-xs font-medium flex items-center justify-center space-x-2 shadow-sm">
+            <i class="fa-solid fa-microphone text-sm"></i>
             <span id="rec-btn-label">音声入力を開始</span>
           </button>
-          <p id="rec-status-hint" class="text-xs text-[#6d6c6b] text-center">
+          <p id="rec-status-hint" class="text-[11px] text-[#6d6c6b] text-center">
             ボタンを押してブラウザ音声認識を開始します
           </p>
         </div>
 
         <!-- Level Meter -->
-        <div class="space-y-1.5 pt-1">
+        <div class="space-y-1">
           <div class="flex justify-between items-center text-xs">
             <span class="editorial-label text-[#6d6c6b]">入力レベル</span>
             <span id="meter-value" class="text-xs text-[#0c0a08]">0%</span>
           </div>
-          <div class="w-full bg-[#f4f2f0] h-2 rounded-[4px] border border-[#e5e7eb] overflow-hidden">
+          <div class="w-full bg-[#f4f2f0] h-1.5 rounded-[4px] border border-[#e5e7eb] overflow-hidden">
             <div id="audio-level-bar" class="bg-[#e4f222] border-r border-[#0c0a08] h-full w-0 transition-all duration-75"></div>
           </div>
         </div>
 
-        <!-- Speaker Name Input (10px radius) -->
-        <div class="space-y-1.5 pt-2">
+        <!-- Speaker Name Input -->
+        <div class="space-y-1 pt-1">
           <label class="block editorial-label text-[#6d6c6b]">話者名（発言者表示）</label>
-          <input id="input-speaker-name" type="text" value="話者 1" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
+          <input id="input-speaker-name" type="text" value="話者 1" class="input-ramp w-full px-3 py-1.5 text-xs text-[#0c0a08]">
         </div>
       </div>
 
       <!-- Room Session Card -->
-      <div class="card-ramp p-5 space-y-3">
+      <div class="card-ramp p-4 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-[#e5e7eb]">
           <span class="editorial-label text-[#0c0a08]">共有ルーム &amp; 暗号化合言葉</span>
           <span class="editorial-label text-[#6d6c6b]">同期</span>
         </div>
 
-        <p class="text-xs text-[#6d6c6b] leading-relaxed">
-          同じルームIDと合言葉を指定した画面へ発言ログが暗号化送信され、リアルタイムに自動復号されます。
+        <p class="text-[11px] text-[#6d6c6b] leading-relaxed">
+          同じルームIDと合言葉を指定した画面へ暗号化送信され、リアルタイムに復号されます。
         </p>
 
         <!-- Room Input -->
-        <div class="space-y-1 pt-1">
+        <div class="space-y-1">
           <label class="block editorial-label text-[#6d6c6b]">ルーム名 (ID)</label>
-          <input id="input-room-id" type="text" placeholder="例: general" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
+          <input id="input-room-id" type="text" placeholder="例: general" class="input-ramp w-full px-3 py-1.5 text-xs text-[#0c0a08]">
         </div>
 
         <!-- Passphrase/Key Input -->
         <div class="space-y-1">
           <label class="block editorial-label text-[#6d6c6b]">暗号化の合言葉（任意）</label>
-          <input id="input-encryption-key" type="password" placeholder="合言葉（空欄時は通常送信）" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
-          <p class="text-[10px] text-[#6d6c6b]">※設定するとテキストが暗号化され、合言葉が一致する画面でのみ復号されます。</p>
+          <input id="input-encryption-key" type="password" placeholder="合言葉（空欄時は通常送信）" class="input-ramp w-full px-3 py-1.5 text-xs text-[#0c0a08]">
         </div>
 
         <!-- Apply Button -->
-        <div class="pt-1">
-          <button id="btn-join-room" class="btn-highlighter w-full py-2 px-4 text-xs font-medium">
-            設定を適用してルームへ接続
-          </button>
-        </div>
+        <button id="btn-join-room" class="btn-highlighter w-full py-2 px-3 text-xs font-medium mt-1">
+          設定を適用してルームへ接続
+        </button>
       </div>
 
       <!-- Export & AI Minutes -->
-      <div class="card-ramp p-5 space-y-3">
-        <div class="pb-2 border-b border-[#e5e7eb]">
+      <div class="card-ramp p-4 space-y-3">
+        <div class="pb-2 border-b border-[#e5e7eb] flex items-center justify-between">
           <span class="editorial-label text-[#0c0a08]">データ保存 &amp; 議事録出力</span>
+          <button id="btn-clear-transcript" class="editorial-label text-[#6d6c6b] hover:text-red-600 transition-colors">
+            消去
+          </button>
         </div>
 
         <!-- 3 Export buttons -->
-        <div class="grid grid-cols-3 gap-2">
-          <button id="btn-export-txt" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+        <div class="grid grid-cols-3 gap-1.5">
+          <button id="btn-export-txt" class="btn-ghost-ramp py-1.5 text-[11px] flex flex-col items-center justify-center space-y-0.5">
             <i class="fa-regular fa-file-lines text-xs text-[#6d6c6b]"></i>
-            <span>TXT保存</span>
+            <span>TXT</span>
           </button>
-          <button id="btn-export-csv" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+          <button id="btn-export-csv" class="btn-ghost-ramp py-1.5 text-[11px] flex flex-col items-center justify-center space-y-0.5">
             <i class="fa-solid fa-file-csv text-xs text-[#6d6c6b]"></i>
-            <span>CSV保存</span>
+            <span>CSV</span>
           </button>
-          <button id="btn-export-md" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+          <button id="btn-export-md" class="btn-ghost-ramp py-1.5 text-[11px] flex flex-col items-center justify-center space-y-0.5">
             <i class="fa-brands fa-markdown text-xs text-[#6d6c6b]"></i>
-            <span>MD保存</span>
+            <span>MD</span>
           </button>
         </div>
 
-        <!-- AI Minutes Action (Highlighted CTA) -->
-        <div class="pt-2">
-          <button id="btn-ai-summary" class="btn-highlighter w-full py-2.5 px-3 text-xs flex items-center justify-center space-x-2">
-            <span class="inline-block w-2 h-2 bg-[#0c0a08] rounded-full"></span>
-            <span>AI要約・議事録作成 (GEMINI)</span>
-          </button>
-        </div>
-
-        <div class="pt-2 text-center">
-          <button id="btn-clear-transcript" class="editorial-label text-[#6d6c6b] hover:text-[#0c0a08] transition-colors">
-            [ ログバッファを消去 ]
-          </button>
-        </div>
+        <!-- AI Minutes Action -->
+        <button id="btn-ai-summary" class="btn-highlighter w-full py-2 px-3 text-xs flex items-center justify-center space-x-1.5">
+          <span class="inline-block w-1.5 h-1.5 bg-[#0c0a08] rounded-full"></span>
+          <span>AI要約・議事録作成</span>
+        </button>
       </div>
 
     </aside>
 
-    <!-- Center Column: Transcription Desk Feed -->
-    <section id="feed-column" class="flex-1 flex flex-col card-ramp overflow-hidden min-h-[580px]">
+    <!-- Center Column: Transcription Desk Feed (Takes full remaining viewport height) -->
+    <section id="feed-column" class="flex-1 flex flex-col card-ramp overflow-hidden min-h-[480px] lg:min-h-0 lg:h-full bg-white shadow-sm">
       
-      <!-- Feed Header -->
-      <div class="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between bg-white">
+      <!-- Feed Header (Fixed at top of feed) -->
+      <div class="px-5 py-3 border-b border-[#e5e7eb] flex items-center justify-between bg-white shrink-0">
         <div class="flex items-center space-x-3">
-          <span class="text-sm font-normal text-[#0c0a08]">文字起こしフィード</span>
+          <span class="text-xs font-medium text-[#0c0a08]">文字起こしフィード</span>
           <span id="log-count" class="editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#0c0a08]">0 件</span>
           <span id="feed-view-badge" class="hidden editorial-label px-2 py-0.5 rounded-[6px] bg-[#e4f222] text-[#0c0a08]">全幅閲覧モード</span>
         </div>
 
-        <div class="flex items-center space-x-3 text-xs">
+        <div class="flex items-center space-x-2.5 text-xs">
           <!-- Font Size Adjustments -->
           <div class="flex items-center border border-[#e5e7eb] rounded-[6px] overflow-hidden bg-white">
-            <button id="btn-font-smaller" class="px-2.5 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0] border-r border-[#e5e7eb]" title="文字を小さく">
+            <button id="btn-font-smaller" class="px-2 py-0.5 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0] border-r border-[#e5e7eb]" title="文字を小さく">
               A-
             </button>
-            <button id="btn-font-larger" class="px-2.5 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0]" title="文字を大きく">
+            <button id="btn-font-larger" class="px-2 py-0.5 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0]" title="文字を大きく">
               A+
             </button>
           </div>
-          <button id="btn-feed-clear" class="btn-ghost-ramp h-7 px-2.5 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="現在の会話ログを消去">
+          <button id="btn-feed-clear" class="btn-ghost-ramp h-7 px-2 text-xs flex items-center space-x-1 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="現在の会話ログを消去">
             <i class="fa-regular fa-trash-can text-[10px]"></i>
-            <span>会話をクリア</span>
+            <span class="hidden sm:inline">クリア</span>
           </button>
           <label class="flex items-center space-x-1.5 cursor-pointer text-[#6d6c6b] select-none hover:text-[#0c0a08]">
             <input id="cb-autoscroll" type="checkbox" checked class="rounded-[4px] border-[#e5e7eb] text-[#0c0a08] focus:ring-0">
@@ -377,15 +369,15 @@
         </div>
       </div>
 
-      <!-- Messages Scroll Area -->
-      <div id="transcription-container" class="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-ramp bg-white">
+      <!-- Messages Scroll Area (ONLY THIS CONTAINER SCROLLS) -->
+      <div id="transcription-container" class="flex-1 p-5 overflow-y-auto space-y-3.5 scrollbar-ramp bg-white">
         
         <!-- Empty State -->
         <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-8">
           <div class="w-12 h-12 rounded-[12px] bg-[#f4f2f0] border border-[#e5e7eb] flex items-center justify-center text-base text-[#6d6c6b] mb-3">
             <i class="fa-solid fa-feather-pointed"></i>
           </div>
-          <h3 class="text-base font-normal text-[#0c0a08] mb-1">発言ログはまだありません</h3>
+          <h3 class="text-sm font-normal text-[#0c0a08] mb-1">発言ログはまだありません</h3>
           <p class="text-xs text-[#6d6c6b] max-w-sm leading-relaxed">
             左側の <span class="bg-[#e4f222] px-1 text-[#0c0a08]">音声入力を開始</span> をクリックするか、下の入力欄から手動でメモを追加できます。接続中のすべての画面に同期されます。
           </p>
@@ -395,21 +387,21 @@
         <div id="messages-list" class="space-y-3 hidden"></div>
 
         <!-- Live Interim Speech Card (Active yellow tint) -->
-        <div id="interim-card" class="hidden p-4 rounded-[12px] border border-[#e4f222] bg-[#fbfde6]">
-          <div class="flex items-center justify-between mb-1.5">
+        <div id="interim-card" class="hidden p-3.5 rounded-[12px] border border-[#e4f222] bg-[#fbfde6]">
+          <div class="flex items-center justify-between mb-1">
             <span id="interim-speaker" class="editorial-label text-[#0c0a08]">話者 1</span>
             <span class="editorial-label px-1.5 py-0.5 rounded-[4px] bg-[#e4f222] text-[#0c0a08]">音声を認識中...</span>
           </div>
-          <p id="interim-text" class="text-sm text-[#0c0a08] leading-relaxed italic"></p>
+          <p id="interim-text" class="text-xs text-[#0c0a08] leading-relaxed italic"></p>
         </div>
 
       </div>
 
-      <!-- Bottom Manual Input Bar (Composite CTA design) -->
-      <div class="p-4 bg-[#f4f2f0] border-t border-[#e5e7eb]">
+      <!-- Bottom Manual Input Bar (Fixed at bottom of feed) -->
+      <div class="p-3 bg-[#f4f2f0] border-t border-[#e5e7eb] shrink-0">
         <form id="form-manual-input" class="flex items-center space-x-2">
-          <input id="input-manual-text" type="text" placeholder="メモや補足をここに入力して Enter を押してください..." class="input-ramp flex-1 px-4 py-2 text-xs text-[#0c0a08] placeholder:text-[#6d6c6b]">
-          <button type="submit" class="btn-outlined px-4 py-2 text-xs">
+          <input id="input-manual-text" type="text" placeholder="メモや補足をここに入力して Enter を押してください..." class="input-ramp flex-1 px-3.5 py-1.5 text-xs text-[#0c0a08] placeholder:text-[#6d6c6b]">
+          <button type="submit" class="btn-outlined px-3.5 py-1.5 text-xs">
             追加
           </button>
         </form>
@@ -418,10 +410,9 @@
     </section>
   </main>
 
-  <!-- AI Report Modal (Ramp card style: 16px radius, hairline border, shadow-free) -->
+  <!-- AI Report Modal -->
   <div id="ai-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="card-ramp max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden bg-white">
-      <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between bg-[#f4f2f0]">
         <div class="flex items-center space-x-2">
           <span class="w-2.5 h-2.5 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
@@ -432,21 +423,17 @@
         </button>
       </div>
 
-      <!-- Modal Body -->
       <div class="p-6 overflow-y-auto flex-1 scrollbar-ramp space-y-4">
         <div id="ai-loading" class="hidden flex flex-col items-center justify-center py-12 space-y-3">
           <div class="w-6 h-6 border-2 border-[#0c0a08] border-t-[#e4f222] rounded-full animate-spin"></div>
           <p id="ai-loading-text" class="text-xs text-[#6d6c6b]">Gemini 最新モデルを検出・接続し、議事録を生成しています...</p>
         </div>
         
-        <div id="ai-result-content" class="text-xs text-[#0c0a08] leading-relaxed whitespace-pre-wrap">
-          <!-- Rendered AI Output -->
-        </div>
+        <div id="ai-result-content" class="text-xs text-[#0c0a08] leading-relaxed whitespace-pre-wrap"></div>
       </div>
 
-      <!-- Modal Footer -->
-      <div class="px-6 py-3.5 bg-[#f4f2f0] border-t border-[#e5e7eb] flex items-center justify-between">
-        <span id="ai-model-tag" class="editorial-label text-[#6d6c6b]">POWERED BY GEMINI (最新モデル自動検出)</span>
+      <div class="px-6 py-3 bg-[#f4f2f0] border-t border-[#e5e7eb] flex items-center justify-between">
+        <span id="ai-model-tag" class="editorial-label text-[#6d6c6b]">POWERED BY GEMINI</span>
         <div class="flex space-x-2">
           <button id="btn-copy-summary" class="btn-ghost-ramp px-3 py-1.5 text-xs">
             コピー
@@ -459,7 +446,7 @@
     </div>
   </div>
 
-  <!-- Clear Confirmation Modal (Custom dialog instead of native confirm/alert) -->
+  <!-- Clear Confirmation Modal -->
   <div id="clear-confirm-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="card-ramp max-w-md w-full p-6 space-y-4 bg-white border border-[#e5e7eb]">
       <div class="flex items-center space-x-3 text-[#0c0a08]">
@@ -482,8 +469,8 @@
     </div>
   </div>
 
-  <!-- Toast Notification (Ramp warm minimalist HUD) -->
-  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-6 opacity-0 pointer-events-none transition-all duration-200 bg-[#0c0a08] text-white px-4 py-2.5 rounded-[6px] border border-[#1a1919] flex items-center space-x-2.5 text-xs">
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-6 opacity-0 pointer-events-none transition-all duration-200 bg-[#0c0a08] text-white px-4 py-2 rounded-[6px] border border-[#1a1919] flex items-center space-x-2.5 text-xs">
     <span id="toast-prefix" class="w-2 h-2 rounded-full bg-[#e4f222]"></span>
     <span id="toast-message" class="text-neutral-200">通知</span>
   </div>
@@ -620,25 +607,24 @@
       }
     }
 
-    // View switcher tab management
     function setViewMode(mode, updateUrl = true) {
       currentViewMode = mode;
 
       const tabButtons = document.querySelectorAll('.tab-view-btn');
       tabButtons.forEach(btn => {
         if (btn.getAttribute('data-view') === mode) {
-          btn.className = "tab-view-btn px-3 py-1.5 rounded-[6px] transition-all bg-[#0c0a08] text-white";
+          btn.className = "tab-view-btn px-3 py-1 rounded-[6px] transition-all bg-[#0c0a08] text-white";
         } else {
-          btn.className = "tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]";
+          btn.className = "tab-view-btn px-3 py-1 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]";
         }
       });
 
       const mobileBtns = document.querySelectorAll('.mobile-tab-btn');
       mobileBtns.forEach(btn => {
         if (btn.getAttribute('data-view') === mode) {
-          btn.className = "mobile-tab-btn px-2 py-1 bg-[#0c0a08] rounded text-[11px] text-[#e4f222]";
+          btn.className = "mobile-tab-btn px-2 py-0.5 bg-[#0c0a08] rounded text-[11px] text-[#e4f222]";
         } else {
-          btn.className = "mobile-tab-btn px-2 py-1 bg-[#2b2929] rounded text-[11px] text-neutral-300";
+          btn.className = "mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300";
         }
       });
 
@@ -650,7 +636,7 @@
         tickerViewMode.textContent = "フィード専用";
       } else if (mode === 'controls') {
         controlsColumn.classList.remove('hidden');
-        controlsColumn.classList.remove('lg:w-[330px]');
+        controlsColumn.classList.remove('lg:w-[320px]');
         controlsColumn.classList.add('max-w-xl', 'mx-auto');
         feedColumn.classList.add('hidden');
         feedViewBadge.classList.add('hidden');
@@ -658,7 +644,7 @@
       } else {
         // split
         controlsColumn.classList.remove('hidden', 'max-w-xl', 'mx-auto');
-        controlsColumn.classList.add('lg:w-[330px]');
+        controlsColumn.classList.add('lg:w-[320px]');
         feedColumn.classList.remove('hidden', 'w-full');
         feedViewBadge.classList.add('hidden');
         tickerViewMode.textContent = "分割表示";
@@ -698,24 +684,16 @@
     const btnFontSmaller = document.getElementById('btn-font-smaller');
     const btnFontLarger = document.getElementById('btn-font-larger');
 
+    // ISOLATED SCROLL: Scrolls ONLY transcriptionContainer, never the whole window
     window.scrollToBottom = function scrollToBottom(smooth = false) {
       if (!autoScrollCb || !autoScrollCb.checked) return;
       setTimeout(() => {
         if (!transcriptionContainer) return;
         transcriptionContainer.scrollTo({
-          top: transcriptionContainer.scrollHeight + 1000,
+          top: transcriptionContainer.scrollHeight + 500,
           behavior: smooth ? 'smooth' : 'auto'
         });
-
-        const interimEl = document.getElementById('interim-card');
-        const target = (interimEl && !interimEl.classList.contains('hidden'))
-          ? interimEl
-          : ((messagesList && messagesList.lastElementChild) || emptyState);
-
-        if (target && typeof target.scrollIntoView === 'function') {
-          target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
-        }
-      }, 60);
+      }, 40);
     };
 
     if (autoScrollCb) {
@@ -820,7 +798,6 @@
       const now = new Date();
       const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      // 合言葉が設定されていれば暗号化して保存
       const payloadText = currentKey ? await encryptText(cleanText, currentKey) : cleanText;
 
       const newEntry = {
@@ -895,7 +872,7 @@
         const row = document.createElement('div');
         row.className = "group p-3 rounded-[12px] bg-[#fbfaf8] border border-[#e5e7eb] hover:border-[#6d6c6b] transition-all";
         row.innerHTML = `
-          <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center justify-between mb-1">
             <div class="flex items-center space-x-2 text-xs">
               <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#0c0a08]"></span>
               <span class="text-[#0c0a08] font-normal">${escapeHtml(item.speaker || '話者')}</span>
@@ -905,7 +882,7 @@
               コピー
             </button>
           </div>
-          <p class="text-xs text-[#0c0a08] leading-relaxed break-words pl-3.5 border-l border-[#e5e7eb]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">${escapeHtml(displayText)}</p>
+          <p class="text-xs text-[#0c0a08] leading-relaxed break-words pl-3 border-l border-[#e5e7eb]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">${escapeHtml(displayText)}</p>
         `;
         messagesList.appendChild(row);
       }
@@ -935,7 +912,6 @@
         .replace(/'/g, '&#039;');
     }
 
-    // 接続ルーム・合言葉の適用ボタン
     document.getElementById('btn-join-room').addEventListener('click', () => {
       const newRoom = inputRoomId.value.trim().toLowerCase() || 'general';
       const newKey = (inputKeyEl ? inputKeyEl.value.trim() : '');
@@ -955,7 +931,6 @@
 
     document.getElementById('btn-copy-room-link').addEventListener('click', () => {
       try {
-        // 現在のURLパスから viewer.html のURLを自動構築
         let baseUrl = window.location.origin + window.location.pathname;
         if (baseUrl.endsWith('/') || baseUrl.endsWith('/index.html')) {
           baseUrl = baseUrl.replace(/\/index\.html$/, '').replace(/\/$/, '') + '/viewer.html';
@@ -979,7 +954,6 @@
         showToast(toastMsg);
       } catch (err) {
         console.error("URL generation error:", err);
-        // フォールバック: ルーム名とキーの文字列をコピー
         copyTextToClipboard(currentKey ? `ルーム: ${currentRoomId} / 合言葉: ${currentKey}` : currentRoomId);
         showToast("ルーム情報をコピーしました");
       }
@@ -1219,7 +1193,7 @@
         micStatusBadge.textContent = "収音中";
         micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#e4f222] text-[#0c0a08]";
         tickerAudioStatus.textContent = "収音中";
-        tickerAudioStatus.className = "text-[#e4f222] text-[13px]";
+        tickerAudioStatus.className = "text-[#e4f222] text-xs";
         recStatusHint.textContent = "マイクからの音声を認識しています";
       } else {
         btnToggleRec.classList.remove('active-glow');
@@ -1227,7 +1201,7 @@
         micStatusBadge.textContent = "待機中";
         micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#6d6c6b]";
         tickerAudioStatus.textContent = "待機中";
-        tickerAudioStatus.className = "text-[#6d6c6b] text-[13px]";
+        tickerAudioStatus.className = "text-[#6d6c6b] text-xs";
         recStatusHint.textContent = "ボタンを押してブラウザ音声認識を開始します";
       }
     }
@@ -1376,7 +1350,6 @@
           const response = await fetch(url, options);
           if (response.ok) return response;
 
-          // Throttled or transient server error: retry
           if (response.status === 429 || response.status >= 500) {
             if (attempt === maxRetries - 1) return response;
           } else {
@@ -1403,19 +1376,16 @@
               .map(m => m.name.replace(/^models\//, ''))
               .filter(name => name.includes('flash') && !name.includes('image') && !name.includes('live') && !name.includes('tts') && !name.includes('embedding'));
 
-            // Check if standard latest 3-flash is available
             if (textModels.includes(defaultLatestModel)) {
               return defaultLatestModel;
             }
             if (textModels.length > 0) {
-              // Sort descending to capture the highest version release available
               textModels.sort((a, b) => b.localeCompare(a));
               return textModels[0];
             }
           }
         }
       } catch (err) {
-        // Graceful fallback to defaultLatestModel on any network/catalog error
       }
       return defaultLatestModel;
     }
@@ -1443,7 +1413,6 @@
       try {
         const apiKey = "";
         
-        // Dynamically resolve the latest Flash generation model
         const activeModel = await resolveLatestGeminiModel(apiKey);
         aiLoadingText.textContent = `最新モデル「${activeModel}」で議事録を作成中...`;
         aiModelTag.textContent = `POWERED BY ${activeModel.toUpperCase()}`;
