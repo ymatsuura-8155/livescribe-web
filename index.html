@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LiveScribe — リアルタイム音声文字起こしと議事録共有</title>
+  <title>LiveScribe — リアルタイム音声文字起こし &amp; 議事録共有</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,7 +130,17 @@
     <div class="max-w-[1400px] w-full mx-auto flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <span class="inline-block w-2 h-2 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
-        <span class="truncate">リアルタイム音声認識インテリジェンス。発話を即座にテキスト化し関係者へ同期します。</span>
+        <span class="truncate">リアルタイム音声認識インテリジェンス。</span>
+        <span class="hidden md:inline text-[#e5e7eb]">|</span>
+        <div class="hidden md:flex items-center space-x-1.5 text-xs">
+          <span class="editorial-label text-[#6d6c6b]">ROOM:</span>
+          <span id="ticker-room-name" class="font-normal text-[#0c0a08]">general</span>
+          <span class="text-[#e5e7eb] mx-1">|</span>
+          <span class="editorial-label text-[#6d6c6b]">LOGS:</span>
+          <span id="ticker-entry-count" class="font-normal text-[#0c0a08]">0 件</span>
+          <span class="text-[#e5e7eb] mx-1">|</span>
+          <span id="ticker-view-mode" class="editorial-label text-[#6d6c6b]">分割表示</span>
+        </div>
       </div>
       <div class="hidden sm:flex items-center space-x-3 text-xs shrink-0">
         <span class="editorial-label text-[#6d6c6b]">接続状態:</span>
@@ -167,70 +177,29 @@
 
       <!-- Room & Actions -->
       <div class="flex items-center space-x-2.5">
-        <!-- Room Tag & Key Info -->
-        <div class="flex items-center h-8 px-2.5 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
-          <span class="editorial-label text-[#6d6c6b] mr-1 hidden sm:inline">ROOM:</span>
-          <span id="current-room-badge" class="font-medium text-[#0c0a08]">general</span>
-          <button id="btn-copy-room-link" title="閲覧用URL（viewer.html）をコピー" class="ml-2 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors flex items-center space-x-1">
-            <i class="fa-regular fa-clone text-xs"></i>
-            <span class="editorial-label hidden lg:inline text-[9px]">共有リンク</span>
+        <!-- Room Badge & Share Link Trigger -->
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
+          <span class="editorial-label text-[#6d6c6b]">ROOM:</span>
+          <span id="current-room-badge" class="font-normal text-[#0c0a08]">general</span>
+          <button id="btn-copy-room-link" class="ml-1 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors p-0.5" title="閲覧用URL (viewer.html) をコピー">
+            <i class="fa-regular fa-copy text-xs"></i>
           </button>
         </div>
 
-        <!-- Key status badge if key is set -->
-        <div id="header-key-badge" class="hidden sm:flex items-center h-8 px-2 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
-          <i class="fa-solid fa-lock text-[10px] mr-1 text-[#0c0a08]"></i>
-          <span id="header-key-text" class="font-mono text-[11px] truncate max-w-[70px]">key</span>
+        <!-- Encryption Status Badge -->
+        <div id="header-key-badge" class="hidden items-center space-x-1 px-2 py-1 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
+          <i class="fa-solid fa-lock text-[10px]"></i>
+          <span id="header-key-text" class="text-[11px] font-mono-ramp"></span>
         </div>
 
-        <!-- Action: Copy All -->
-        <button id="btn-copy-all" class="btn-outlined h-8 px-2.5 text-xs flex items-center space-x-1.5">
-          <i class="fa-regular fa-copy text-[11px]"></i>
-          <span class="hidden sm:inline">全文コピー</span>
-        </button>
-
-        <!-- Action: Clear -->
-        <button id="btn-open-clear-modal" class="btn-ghost-ramp h-8 px-2.5 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="会話ログを消去">
+        <!-- Clear Logs Button -->
+        <button id="btn-open-clear-modal" class="btn-ghost-ramp h-7 px-2.5 text-xs flex items-center space-x-1 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="会話ログを消去">
           <i class="fa-regular fa-trash-can text-[11px]"></i>
-          <span class="hidden sm:inline">会話をクリア</span>
+          <span class="hidden sm:inline">消去</span>
         </button>
       </div>
     </div>
   </header>
-
-  <!-- Live Counter Dark Band (36px height) -->
-  <div class="h-9 shrink-0 bg-[#1a1919] text-white px-6 border-b border-[#0c0a08] flex items-center">
-    <div class="max-w-[1400px] w-full mx-auto flex items-center justify-between text-xs">
-      <div class="flex items-center space-x-5 overflow-x-auto">
-        <div class="flex items-center space-x-1.5 shrink-0">
-          <span class="editorial-label text-[#6d6c6b]">接続ルーム:</span>
-          <span class="text-[#e4f222] text-xs" id="ticker-room-name">general</span>
-        </div>
-        <div class="flex items-center space-x-1.5 shrink-0">
-          <span class="editorial-label text-[#6d6c6b]">表示:</span>
-          <span id="ticker-view-mode" class="text-white text-xs">分割表示</span>
-        </div>
-        <div class="flex items-center space-x-1.5 shrink-0 md:hidden">
-          <button data-view="split" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-[#e4f222]">分割</button>
-          <button data-view="feed" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">閲覧</button>
-          <button data-view="controls" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">操作</button>
-        </div>
-        <div class="flex items-center space-x-1.5 shrink-0">
-          <span class="editorial-label text-[#6d6c6b]">記録件数:</span>
-          <span id="ticker-entry-count" class="text-white text-xs">0 件</span>
-        </div>
-        <div class="flex items-center space-x-1.5 shrink-0">
-          <span class="editorial-label text-[#6d6c6b]">音声入力状態:</span>
-          <span id="ticker-audio-status" class="text-[#6d6c6b] text-xs">待機中</span>
-        </div>
-      </div>
-      <div class="hidden md:flex items-center space-x-2 text-[#6d6c6b]">
-        <span class="editorial-label">ACCENT:</span>
-        <span class="w-2 h-2 rounded-[2px] bg-[#e4f222]"></span>
-        <span class="editorial-label text-white">#E4F222</span>
-      </div>
-    </div>
-  </div>
 
   <!-- Main Viewport Layout (Desktop: Fixed height, No window scroll) -->
   <main id="main-content-area" class="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-4 flex flex-col lg:flex-row gap-5 lg:overflow-hidden">
@@ -327,12 +296,6 @@
             <span>MD</span>
           </button>
         </div>
-
-        <!-- AI Minutes Action -->
-        <button id="btn-ai-summary" class="btn-highlighter w-full py-2 px-3 text-xs flex items-center justify-center space-x-1.5">
-          <span class="inline-block w-1.5 h-1.5 bg-[#0c0a08] rounded-full"></span>
-          <span>AI要約・議事録作成</span>
-        </button>
       </div>
 
     </aside>
@@ -410,42 +373,6 @@
     </section>
   </main>
 
-  <!-- AI Report Modal -->
-  <div id="ai-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="card-ramp max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden bg-white">
-      <div class="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between bg-[#f4f2f0]">
-        <div class="flex items-center space-x-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
-          <h3 class="text-sm font-normal text-[#0c0a08]">AI議事録 &amp; エグゼクティブサマリー</h3>
-        </div>
-        <button id="btn-close-modal" class="editorial-label text-[#6d6c6b] hover:text-[#0c0a08]">
-          [ 閉じる ]
-        </button>
-      </div>
-
-      <div class="p-6 overflow-y-auto flex-1 scrollbar-ramp space-y-4">
-        <div id="ai-loading" class="hidden flex flex-col items-center justify-center py-12 space-y-3">
-          <div class="w-6 h-6 border-2 border-[#0c0a08] border-t-[#e4f222] rounded-full animate-spin"></div>
-          <p id="ai-loading-text" class="text-xs text-[#6d6c6b]">Gemini 最新モデルを検出・接続し、議事録を生成しています...</p>
-        </div>
-        
-        <div id="ai-result-content" class="text-xs text-[#0c0a08] leading-relaxed whitespace-pre-wrap"></div>
-      </div>
-
-      <div class="px-6 py-3 bg-[#f4f2f0] border-t border-[#e5e7eb] flex items-center justify-between">
-        <span id="ai-model-tag" class="editorial-label text-[#6d6c6b]">POWERED BY GEMINI</span>
-        <div class="flex space-x-2">
-          <button id="btn-copy-summary" class="btn-ghost-ramp px-3 py-1.5 text-xs">
-            コピー
-          </button>
-          <button id="btn-download-summary" class="btn-highlighter px-4 py-1.5 text-xs">
-            .TXTで保存
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Clear Confirmation Modal -->
   <div id="clear-confirm-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="card-ramp max-w-md w-full p-6 space-y-4 bg-white border border-[#e5e7eb]">
@@ -522,10 +449,10 @@
     const feedViewBadge = document.getElementById('feed-view-badge');
     const tickerViewMode = document.getElementById('ticker-view-mode');
 
-    // UI初期値設定
-    roomBadge.textContent = currentRoomId;
-    tickerRoomName.textContent = currentRoomId;
-    inputRoomId.value = currentRoomId;
+    // UI初期値設定（存在チェック付き）
+    if (roomBadge) roomBadge.textContent = currentRoomId;
+    if (tickerRoomName) tickerRoomName.textContent = currentRoomId;
+    if (inputRoomId) inputRoomId.value = currentRoomId;
     if (inputKeyEl) inputKeyEl.value = currentKey;
     updateKeyUI();
 
@@ -533,9 +460,11 @@
       if (headerKeyBadge && headerKeyText) {
         if (currentKey) {
           headerKeyBadge.classList.remove('hidden');
+          headerKeyBadge.classList.add('flex');
           headerKeyText.textContent = currentKey;
         } else {
           headerKeyBadge.classList.add('hidden');
+          headerKeyBadge.classList.remove('flex');
         }
       }
     }
@@ -633,21 +562,21 @@
         feedColumn.classList.remove('hidden');
         feedColumn.classList.add('w-full');
         feedViewBadge.classList.remove('hidden');
-        tickerViewMode.textContent = "フィード専用";
+        if (tickerViewMode) tickerViewMode.textContent = "フィード専用";
       } else if (mode === 'controls') {
         controlsColumn.classList.remove('hidden');
         controlsColumn.classList.remove('lg:w-[320px]');
         controlsColumn.classList.add('max-w-xl', 'mx-auto');
         feedColumn.classList.add('hidden');
         feedViewBadge.classList.add('hidden');
-        tickerViewMode.textContent = "操作パネル";
+        if (tickerViewMode) tickerViewMode.textContent = "操作パネル";
       } else {
         // split
         controlsColumn.classList.remove('hidden', 'max-w-xl', 'mx-auto');
         controlsColumn.classList.add('lg:w-[320px]');
         feedColumn.classList.remove('hidden', 'w-full');
         feedViewBadge.classList.add('hidden');
-        tickerViewMode.textContent = "分割表示";
+        if (tickerViewMode) tickerViewMode.textContent = "分割表示";
       }
 
       if (updateUrl) {
@@ -852,8 +781,8 @@
     };
 
     async function renderTranscriptList() {
-      logCountBadge.textContent = `${transcriptItems.length} 件`;
-      tickerEntryCount.textContent = `${transcriptItems.length} 件`;
+      if (logCountBadge) logCountBadge.textContent = `${transcriptItems.length} 件`;
+      if (tickerEntryCount) tickerEntryCount.textContent = `${transcriptItems.length} 件`;
 
       if (transcriptItems.length === 0) {
         messagesList.classList.add('hidden');
@@ -918,8 +847,8 @@
 
       currentRoomId = newRoom;
       currentKey = newKey;
-      roomBadge.textContent = currentRoomId;
-      tickerRoomName.textContent = currentRoomId;
+      if (roomBadge) roomBadge.textContent = currentRoomId;
+      if (tickerRoomName) tickerRoomName.textContent = currentRoomId;
       updateKeyUI();
       updateCurrentUrl();
 
@@ -929,35 +858,38 @@
       listenToRoomData(currentRoomId);
     });
 
-    document.getElementById('btn-copy-room-link').addEventListener('click', () => {
-      try {
-        let baseUrl = window.location.origin + window.location.pathname;
-        if (baseUrl.endsWith('/') || baseUrl.endsWith('/index.html')) {
-          baseUrl = baseUrl.replace(/\/index\.html$/, '').replace(/\/$/, '') + '/viewer.html';
-        } else {
-          const lastSlash = baseUrl.lastIndexOf('/');
-          baseUrl = baseUrl.substring(0, lastSlash + 1) + 'viewer.html';
-        }
+    const btnCopyRoomLink = document.getElementById('btn-copy-room-link');
+    if (btnCopyRoomLink) {
+      btnCopyRoomLink.addEventListener('click', () => {
+        try {
+          let baseUrl = window.location.origin + window.location.pathname;
+          if (baseUrl.endsWith('/') || baseUrl.endsWith('/index.html')) {
+            baseUrl = baseUrl.replace(/\/index\.html$/, '').replace(/\/$/, '') + '/viewer.html';
+          } else {
+            const lastSlash = baseUrl.lastIndexOf('/');
+            baseUrl = baseUrl.substring(0, lastSlash + 1) + 'viewer.html';
+          }
 
-        const shareUrlObj = new URL(baseUrl);
-        shareUrlObj.searchParams.set('room', currentRoomId);
-        if (currentKey) {
-          shareUrlObj.searchParams.set('key', currentKey);
-        }
+          const shareUrlObj = new URL(baseUrl);
+          shareUrlObj.searchParams.set('room', currentRoomId);
+          if (currentKey) {
+            shareUrlObj.searchParams.set('key', currentKey);
+          }
 
-        const fullShareUrl = shareUrlObj.toString();
-        copyTextToClipboard(fullShareUrl);
-        
-        const toastMsg = currentKey 
-          ? `閲覧用URL (合言葉含む) をコピーしました: ${currentRoomId}` 
-          : `閲覧用URL をコピーしました: ${currentRoomId}`;
-        showToast(toastMsg);
-      } catch (err) {
-        console.error("URL generation error:", err);
-        copyTextToClipboard(currentKey ? `ルーム: ${currentRoomId} / 合言葉: ${currentKey}` : currentRoomId);
-        showToast("ルーム情報をコピーしました");
-      }
-    });
+          const fullShareUrl = shareUrlObj.toString();
+          copyTextToClipboard(fullShareUrl);
+          
+          const toastMsg = currentKey 
+            ? `閲覧用URL (合言葉含む) をコピーしました: ${currentRoomId}` 
+            : `閲覧用URL をコピーしました: ${currentRoomId}`;
+          showToast(toastMsg);
+        } catch (err) {
+          console.error("URL generation error:", err);
+          copyTextToClipboard(currentKey ? `ルーム: ${currentRoomId} / 合言葉: ${currentKey}` : currentRoomId);
+          showToast("ルーム情報をコピーしました");
+        }
+      });
+    }
 
     document.getElementById('form-manual-input').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -987,7 +919,8 @@
       clearConfirmModal.classList.add('hidden');
     }
 
-    document.getElementById('btn-open-clear-modal').addEventListener('click', openClearModal);
+    const btnOpenClearModal = document.getElementById('btn-open-clear-modal');
+    if (btnOpenClearModal) btnOpenClearModal.addEventListener('click', openClearModal);
     document.getElementById('btn-feed-clear').addEventListener('click', openClearModal);
     document.getElementById('btn-clear-transcript').addEventListener('click', openClearModal);
 
@@ -1013,6 +946,7 @@
 
   <!-- Audio, Speech Recognition, & Export Scripts -->
   <script>
+    // Audio Level Meter & Web Speech Recognition
     let recognition = null;
     let isRecognizing = false;
     let audioContext = null;
@@ -1022,23 +956,18 @@
 
     const btnToggleRec = document.getElementById('btn-toggle-rec');
     const recBtnLabel = document.getElementById('rec-btn-label');
-    const recStatusHint = document.getElementById('rec-status-hint');
     const micStatusBadge = document.getElementById('mic-status-badge');
-    const tickerAudioStatus = document.getElementById('ticker-audio-status');
+    const recStatusHint = document.getElementById('rec-status-hint');
     const audioLevelBar = document.getElementById('audio-level-bar');
     const meterValue = document.getElementById('meter-value');
-    const inputSpeaker = document.getElementById('input-speaker-name');
     const interimCard = document.getElementById('interim-card');
-    const interimSpeaker = document.getElementById('interim-speaker');
     const interimText = document.getElementById('interim-text');
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const interimSpeaker = document.getElementById('interim-speaker');
 
     function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        showToast("お使いのブラウザは音声認識に対応していません", "error");
-        recStatusHint.textContent = "音声認識がサポートされていません";
-        btnToggleRec.disabled = true;
+        showToast("このブラウザは音声認識に対応していません。Chromeをお使いください。", "error");
         return null;
       }
 
@@ -1047,50 +976,35 @@
       rec.interimResults = true;
       rec.lang = 'ja-JP';
 
-      rec.onstart = () => {
-        isRecognizing = true;
-        updateMicUI(true);
-      };
-
       rec.onresult = (event) => {
-        let finalTranscripts = '';
-        let interimTranscripts = '';
+        let interimTranscript = '';
+        const currentSpeaker = document.getElementById('input-speaker-name').value || '話者 1';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscripts += transcript;
+            if (transcript.trim()) {
+              window.saveTranscriptEntry(transcript.trim(), currentSpeaker);
+            }
           } else {
-            interimTranscripts += transcript;
+            interimTranscript += transcript;
           }
         }
 
-        if (interimTranscripts.trim()) {
+        if (interimTranscript.trim()) {
+          interimSpeaker.textContent = currentSpeaker;
+          interimText.textContent = interimTranscript;
           interimCard.classList.remove('hidden');
-          interimSpeaker.textContent = inputSpeaker.value || '話者 1';
-          interimText.textContent = interimTranscripts;
-          if (typeof window.scrollToBottom === 'function') {
-            window.scrollToBottom(false);
-          }
+          window.scrollToBottom(false);
         } else {
           interimCard.classList.add('hidden');
-        }
-
-        if (finalTranscripts.trim()) {
-          interimCard.classList.add('hidden');
-          if (window.saveTranscriptEntry) {
-            window.saveTranscriptEntry(finalTranscripts, inputSpeaker.value);
-          }
-          if (typeof window.scrollToBottom === 'function') {
-            window.scrollToBottom(true);
-          }
         }
       };
 
       rec.onerror = (event) => {
         console.warn("Speech error:", event.error);
         if (event.error === 'not-allowed') {
-          showToast("マイクへのアクセスが許可されていません", "error");
+          showToast("マイクへのアクセスが拒否されました", "error");
           stopRecognition();
         }
       };
@@ -1101,8 +1015,8 @@
             rec.start();
           } catch (e) {}
         } else {
-          updateMicUI(false);
           interimCard.classList.add('hidden');
+          updateMicUI(false);
         }
       };
 
@@ -1111,36 +1025,31 @@
 
     async function startAudioMeter() {
       try {
-        microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        microphoneStream = stream;
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
         analyser.fftSize = 256;
-
-        const source = audioContext.createMediaStreamSource(microphoneStream);
+        const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        function updateMeter() {
-          if (!isRecognizing) {
-            audioLevelBar.style.width = '0%';
-            meterValue.textContent = '0%';
-            return;
-          }
+        const updateMeter = () => {
           analyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < dataArray.length; i++) {
             sum += dataArray[i];
           }
           const average = sum / dataArray.length;
-          const percentage = Math.min(100, Math.round((average / 128) * 100));
-          audioLevelBar.style.width = `${percentage}%`;
-          meterValue.textContent = `${percentage}%`;
+          const percent = Math.min(100, Math.round((average / 128) * 100));
+          audioLevelBar.style.width = `${percent}%`;
+          meterValue.textContent = `${percent}%`;
           animFrameId = requestAnimationFrame(updateMeter);
-        }
+        };
         updateMeter();
+        updateMicUI(true);
       } catch (err) {
-        console.warn("Audio meter bypassed:", err);
+        console.warn("Microphone access error:", err);
       }
     }
 
@@ -1192,16 +1101,12 @@
         recBtnLabel.textContent = "音声入力を停止";
         micStatusBadge.textContent = "収音中";
         micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#e4f222] text-[#0c0a08]";
-        tickerAudioStatus.textContent = "収音中";
-        tickerAudioStatus.className = "text-[#e4f222] text-xs";
         recStatusHint.textContent = "マイクからの音声を認識しています";
       } else {
         btnToggleRec.classList.remove('active-glow');
         recBtnLabel.textContent = "音声入力を開始";
         micStatusBadge.textContent = "待機中";
         micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#6d6c6b]";
-        tickerAudioStatus.textContent = "待機中";
-        tickerAudioStatus.className = "text-[#6d6c6b] text-xs";
         recStatusHint.textContent = "ボタンを押してブラウザ音声認識を開始します";
       }
     }
@@ -1241,7 +1146,6 @@
       }
 
       let txt = `LiveScribe 音声文字起こしログ\n`;
-      txt += `ルーム: ${document.getElementById('current-room-badge').textContent}\n`;
       txt += `日時: ${new Date().toLocaleString('ja-JP')}\n`;
       txt += `--------------------------------------------------\n\n`;
 
@@ -1283,7 +1187,6 @@
       }
 
       let md = `# 会議音声文字起こし記録\n\n`;
-      md += `- **対象ルーム**: \`${document.getElementById('current-room-badge').textContent}\`\n`;
       md += `- **出力日時**: \`${new Date().toLocaleString('ja-JP')}\`\n\n`;
       md += `## 発言タイムライン\n\n`;
 
@@ -1314,165 +1217,6 @@
       }
       document.body.removeChild(textArea);
     }
-
-    document.getElementById('btn-copy-all').addEventListener('click', () => {
-      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
-      if (rows.length === 0) {
-        showToast("記録データがありません", "error");
-        return;
-      }
-      const fullText = rows.map(el => {
-        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
-        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
-        const body = el.querySelector('p')?.textContent || '';
-        return `[${time}] ${speaker}: ${body}`;
-      }).join('\n');
-
-      copyTextToClipboard(fullText);
-      showToast("全文ログをクリップボードにコピーしました");
-    });
-
-    // Gemini API Report Generator
-    const aiModal = document.getElementById('ai-modal');
-    const btnAiSummary = document.getElementById('btn-ai-summary');
-    const btnCloseModal = document.getElementById('btn-close-modal');
-    const aiLoading = document.getElementById('ai-loading');
-    const aiLoadingText = document.getElementById('ai-loading-text');
-    const aiResultContent = document.getElementById('ai-result-content');
-    const aiModelTag = document.getElementById('ai-model-tag');
-    const btnCopySummary = document.getElementById('btn-copy-summary');
-    const btnDownloadSummary = document.getElementById('btn-download-summary');
-
-    async function fetchWithExponentialBackoff(url, options, maxRetries = 3) {
-      let delay = 1000;
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-          const response = await fetch(url, options);
-          if (response.ok) return response;
-
-          if (response.status === 429 || response.status >= 500) {
-            if (attempt === maxRetries - 1) return response;
-          } else {
-            return response;
-          }
-        } catch (err) {
-          if (attempt === maxRetries - 1) throw err;
-        }
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2;
-      }
-    }
-
-    async function resolveLatestGeminiModel(apiKey) {
-      const defaultLatestModel = "gemini-3-flash-preview";
-      try {
-        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-        const response = await fetchWithExponentialBackoff(listUrl, { method: 'GET' }, 2);
-        if (response && response.ok) {
-          const data = await response.json();
-          if (data.models && Array.isArray(data.models)) {
-            const textModels = data.models
-              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-              .map(m => m.name.replace(/^models\//, ''))
-              .filter(name => name.includes('flash') && !name.includes('image') && !name.includes('live') && !name.includes('tts') && !name.includes('embedding'));
-
-            if (textModels.includes(defaultLatestModel)) {
-              return defaultLatestModel;
-            }
-            if (textModels.length > 0) {
-              textModels.sort((a, b) => b.localeCompare(a));
-              return textModels[0];
-            }
-          }
-        }
-      } catch (err) {
-      }
-      return defaultLatestModel;
-    }
-
-    btnAiSummary.addEventListener('click', async () => {
-      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
-      if (rows.length === 0) {
-        showToast("先に音声録音またはメモを入力してください", "error");
-        return;
-      }
-
-      const conversationText = rows.map(el => {
-        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
-        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
-        const body = el.querySelector('p')?.textContent || '';
-        return `[${time}] ${speaker}: ${body}`;
-      }).join('\n');
-
-      aiModal.classList.remove('hidden');
-      aiLoading.classList.remove('hidden');
-      aiLoadingText.textContent = "最新モデルを検出して接続中...";
-      aiResultContent.textContent = '';
-      aiModelTag.textContent = "POWERED BY GEMINI (接続中...)";
-
-      try {
-        const apiKey = "";
-        
-        const activeModel = await resolveLatestGeminiModel(apiKey);
-        aiLoadingText.textContent = `最新モデル「${activeModel}」で議事録を作成中...`;
-        aiModelTag.textContent = `POWERED BY ${activeModel.toUpperCase()}`;
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
-
-        const systemPrompt = "あなたは優秀な役員秘書および議事録作成のエキスパートです。提供された会話ログを精査し、以下の構成で読みやすく構造化された日本語の議事録を作成してください。\n1. 会議概要\n2. 主な討議事項\n3. 決定事項\n4. 次回へのアクションアイテム（ToDo）\n箇条書きを用い、明瞭で簡潔なビジネス文書として出力してください。";
-        const userQuery = `以下の文字起こしログから、日本語の議事録・要約レポートを作成してください:\n\n${conversationText}`;
-
-        const payload = {
-          contents: [{ parts: [{ text: userQuery }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] }
-        };
-
-        const response = await fetchWithExponentialBackoff(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }, 3);
-
-        const result = await response.json();
-        const candidate = result.candidates?.[0];
-        const generatedText = candidate?.content?.parts?.[0]?.text;
-
-        aiLoading.classList.add('hidden');
-        if (generatedText) {
-          aiResultContent.textContent = generatedText;
-          aiModelTag.textContent = `POWERED BY ${activeModel.toUpperCase()} (最新モデル使用)`;
-        } else {
-          aiResultContent.textContent = "AIレポートの生成に失敗しました。応答内容を確認してください。";
-        }
-      } catch (err) {
-        console.error("Gemini call error:", err);
-        aiLoading.classList.add('hidden');
-        aiResultContent.textContent = "レポートの生成処理中にエラーが発生しました。ネットワーク接続やAPI設定をご確認ください。";
-      }
-    });
-
-    btnCloseModal.addEventListener('click', () => {
-      aiModal.classList.add('hidden');
-    });
-
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !aiModal.classList.contains('hidden')) {
-        aiModal.classList.add('hidden');
-      }
-    });
-
-    btnCopySummary.addEventListener('click', () => {
-      if (aiResultContent.textContent) {
-        copyTextToClipboard(aiResultContent.textContent);
-        showToast("議事録をクリップボードにコピーしました");
-      }
-    });
-
-    btnDownloadSummary.addEventListener('click', () => {
-      if (aiResultContent.textContent) {
-        downloadFile(aiResultContent.textContent, `gijiroku_summary_${getFormattedDate()}.txt`, 'text/plain;charset=utf-8');
-      }
-    });
 
     let toastTimeout = null;
     function showToast(message, type = 'success') {
