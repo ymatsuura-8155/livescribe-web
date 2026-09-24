@@ -167,13 +167,20 @@
 
       <!-- Room & Actions -->
       <div class="flex items-center space-x-3">
-        <!-- Room Tag -->
+        <!-- Room Tag & Key Info -->
         <div class="flex items-center h-8 px-3 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
           <span class="editorial-label text-[#6d6c6b] mr-1.5">ルーム:</span>
-          <span id="current-room-badge" class="text-[#0c0a08]">general</span>
-          <button id="btn-copy-room-link" title="共有ルームURLをコピー" class="ml-2.5 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors">
+          <span id="current-room-badge" class="font-medium text-[#0c0a08]">general</span>
+          <button id="btn-copy-room-link" title="閲覧用URL（viewer.html）をコピー" class="ml-2.5 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors flex items-center space-x-1">
             <i class="fa-regular fa-clone text-xs"></i>
+            <span class="editorial-label hidden sm:inline text-[9px]">共有リンク</span>
           </button>
+        </div>
+
+        <!-- Key status badge if key is set -->
+        <div id="header-key-badge" class="hidden sm:flex items-center h-8 px-2.5 bg-[#fbfde6] rounded-[6px] border border-[#e4f222] text-xs text-[#0c0a08]">
+          <i class="fa-solid fa-lock text-[10px] mr-1.5 text-[#0c0a08]"></i>
+          <span id="header-key-text" class="font-mono text-[11px] truncate max-w-[80px]">key</span>
         </div>
 
         <!-- Highlighter Demo Action -->
@@ -270,19 +277,31 @@
       <!-- Room Session Card -->
       <div class="card-ramp p-5 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-[#e5e7eb]">
-          <span class="editorial-label text-[#0c0a08]">共有ルーム設定</span>
+          <span class="editorial-label text-[#0c0a08]">共有ルーム &amp; 暗号化合言葉</span>
           <span class="editorial-label text-[#6d6c6b]">同期</span>
         </div>
 
         <p class="text-xs text-[#6d6c6b] leading-relaxed">
-          同じルームIDに参加している関係者のPC画面へ、発言ログがリアルタイムに自動同期されます。
+          同じルームIDと合言葉を指定した画面へ発言ログが暗号化送信され、リアルタイムに自動復号されます。
         </p>
 
-        <!-- Composite Input + Action -->
-        <div class="flex space-x-2 pt-1">
-          <input id="input-room-id" type="text" placeholder="例: 役員会議-01" class="input-ramp flex-1 px-3 py-2 text-xs text-[#0c0a08]">
-          <button id="btn-join-room" class="btn-outlined px-4 py-2 text-xs">
-            参加
+        <!-- Room Input -->
+        <div class="space-y-1 pt-1">
+          <label class="block editorial-label text-[#6d6c6b]">ルーム名 (ID)</label>
+          <input id="input-room-id" type="text" placeholder="例: general" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
+        </div>
+
+        <!-- Passphrase/Key Input -->
+        <div class="space-y-1">
+          <label class="block editorial-label text-[#6d6c6b]">暗号化の合言葉（任意）</label>
+          <input id="input-encryption-key" type="password" placeholder="合言葉（空欄時は通常送信）" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
+          <p class="text-[10px] text-[#6d6c6b]">※設定するとテキストが暗号化され、合言葉が一致する画面でのみ復号されます。</p>
+        </div>
+
+        <!-- Apply Button -->
+        <div class="pt-1">
+          <button id="btn-join-room" class="btn-highlighter w-full py-2 px-4 text-xs font-medium">
+            設定を適用してルームへ接続
           </button>
         </div>
       </div>
@@ -472,7 +491,7 @@
   <!-- Realtime Cloud Firebase Architecture -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { 
       getFirestore, 
       collection, 
@@ -488,11 +507,11 @@
     let currentUser = null;
     let unsubscribeSnapshot = null;
     let transcriptItems = [];
-    // ローカル動作時の全ログ保存用（ルーム別分離）
     let localAllTranscripts = [];
 
     const urlParams = new URLSearchParams(window.location.search);
     let currentRoomId = (urlParams.get('room') || 'general').trim().toLowerCase();
+    let currentKey = (urlParams.get('key') || '').trim();
     let currentViewMode = (urlParams.get('view') || 'split').trim().toLowerCase();
     if (!['split', 'feed', 'controls'].includes(currentViewMode)) {
       currentViewMode = 'split';
@@ -501,6 +520,9 @@
     const roomBadge = document.getElementById('current-room-badge');
     const tickerRoomName = document.getElementById('ticker-room-name');
     const inputRoomId = document.getElementById('input-room-id');
+    const inputKeyEl = document.getElementById('input-encryption-key');
+    const headerKeyBadge = document.getElementById('header-key-badge');
+    const headerKeyText = document.getElementById('header-key-text');
     const syncStatusText = document.getElementById('sync-status-text');
     const messagesList = document.getElementById('messages-list');
     const emptyState = document.getElementById('empty-state');
@@ -512,11 +534,91 @@
     const feedColumn = document.getElementById('feed-column');
     const feedViewBadge = document.getElementById('feed-view-badge');
     const tickerViewMode = document.getElementById('ticker-view-mode');
-    const mainContentArea = document.getElementById('main-content-area');
 
+    // UI初期値設定
     roomBadge.textContent = currentRoomId;
     tickerRoomName.textContent = currentRoomId;
     inputRoomId.value = currentRoomId;
+    if (inputKeyEl) inputKeyEl.value = currentKey;
+    updateKeyUI();
+
+    function updateKeyUI() {
+      if (headerKeyBadge && headerKeyText) {
+        if (currentKey) {
+          headerKeyBadge.classList.remove('hidden');
+          headerKeyText.textContent = currentKey;
+        } else {
+          headerKeyBadge.classList.add('hidden');
+        }
+      }
+    }
+
+    async function deriveCryptoKey(passphrase) {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(passphrase),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+      return crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: enc.encode("livescribe-fixed-salt-2024"),
+          iterations: 100000,
+          hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    async function encryptText(plaintext, passphrase) {
+      if (!passphrase || !passphrase.trim()) return plaintext;
+      try {
+        const key = await deriveCryptoKey(passphrase.trim());
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const enc = new TextEncoder();
+        const ciphertext = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          enc.encode(plaintext)
+        );
+        const ivBase64 = btoa(String.fromCharCode(...iv));
+        const cipherBase64 = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
+        return `enc:${ivBase64}:${cipherBase64}`;
+      } catch (err) {
+        console.error("Encryption error:", err);
+        return plaintext;
+      }
+    }
+
+    async function decryptText(encryptedString, passphrase) {
+      if (!encryptedString || !encryptedString.startsWith('enc:')) {
+        return encryptedString;
+      }
+      if (!passphrase) {
+        return "🔒 [暗号化されています。合言葉を入力してください]";
+      }
+      try {
+        const parts = encryptedString.substring(4).split(':');
+        if (parts.length !== 2) return encryptedString;
+        const iv = Uint8Array.from(atob(parts[0]), c => c.charCodeAt(0));
+        const ciphertext = Uint8Array.from(atob(parts[1]), c => c.charCodeAt(0));
+        const key = await deriveCryptoKey(passphrase.trim());
+        const decrypted = await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: iv },
+          key,
+          ciphertext
+        );
+        return new TextDecoder().decode(decrypted);
+      } catch (err) {
+        return "🔒 [合言葉が一致しないため復号できません]";
+      }
+    }
 
     // View switcher tab management
     function setViewMode(mode, updateUrl = true) {
@@ -563,15 +665,25 @@
       }
 
       if (updateUrl) {
-        try {
-          if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
-            const newUrl = new URL(window.location.href);
-            newUrl.searchParams.set('view', mode);
-            window.history.pushState({}, '', newUrl);
+        updateCurrentUrl();
+      }
+    }
+
+    function updateCurrentUrl() {
+      try {
+        if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('room', currentRoomId);
+          if (currentKey) {
+            newUrl.searchParams.set('key', currentKey);
+          } else {
+            newUrl.searchParams.delete('key');
           }
-        } catch (err) {
-          console.warn("View mode history push skipped:", err);
+          newUrl.searchParams.set('view', currentViewMode);
+          window.history.pushState({}, '', newUrl);
         }
+      } catch (err) {
+        console.warn("History pushState skipped:", err);
       }
     }
 
@@ -582,26 +694,19 @@
       });
     });
 
-    // Font size adjustments in the transcript feed
-    let currentFontSizeRem = 0.875; // default 14px (text-sm)
+    let currentFontSizeRem = 0.875;
     const btnFontSmaller = document.getElementById('btn-font-smaller');
     const btnFontLarger = document.getElementById('btn-font-larger');
 
-    // 確実な自動スクロール制御 (外部スクリプトからも呼び出せるよう window にグローバル公開)
     window.scrollToBottom = function scrollToBottom(smooth = false) {
       if (!autoScrollCb || !autoScrollCb.checked) return;
-      
-      // DOMツリーの更新と再レイアウトが完了したタイミングでスクロールを実行
       setTimeout(() => {
         if (!transcriptionContainer) return;
-        
-        // 1. コンテナ自身のスクロール位置を最下部に更新
         transcriptionContainer.scrollTo({
           top: transcriptionContainer.scrollHeight + 1000,
           behavior: smooth ? 'smooth' : 'auto'
         });
 
-        // 2. 最下部にある最新要素（認識中カード、または最後の発言行）を画面内に確実に収める
         const interimEl = document.getElementById('interim-card');
         const target = (interimEl && !interimEl.classList.contains('hidden'))
           ? interimEl
@@ -613,7 +718,6 @@
       }, 60);
     };
 
-    // 自動スクロールチェックボックスのON切り替え時にも即スクロール
     if (autoScrollCb) {
       autoScrollCb.addEventListener('change', () => {
         if (autoScrollCb.checked) {
@@ -660,11 +764,7 @@
         auth = getAuth(app);
         db = getFirestore(app);
 
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
+        await signInAnonymously(auth);
         currentUser = auth.currentUser;
 
         syncStatusText.textContent = "同期接続中";
@@ -692,21 +792,18 @@
         return;
       }
 
-      // ルーム専用の独立コレクションから取得
       const transcriptsCol = collection(db, 'transcripts');
 
       unsubscribeSnapshot = onSnapshot(transcriptsCol, (snapshot) => {
         const docs = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
-          // 現在参加中のルームの発言のみを厳密に抽出
           const itemRoom = (data.roomId || 'general').trim().toLowerCase();
           if (itemRoom === currentRoomId) {
             docs.push({ id: docSnap.id, ...data });
           }
         });
 
-        // 作成時刻順でソート
         docs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         transcriptItems = docs;
         renderTranscriptList();
@@ -723,10 +820,12 @@
       const now = new Date();
       const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-      // 発言データに必ず参加中ルームIDを付与
+      // 合言葉が設定されていれば暗号化して保存
+      const payloadText = currentKey ? await encryptText(cleanText, currentKey) : cleanText;
+
       const newEntry = {
         roomId: currentRoomId,
-        text: cleanText,
+        text: payloadText,
         speaker: speakerName,
         timestamp: timeStr,
         createdAt: Date.now()
@@ -756,7 +855,6 @@
           const snapshot = await getDocs(transcriptsCol);
           const deletePromises = [];
           
-          // 現在のルームに属するドキュメントのみを削除（他ルームの会話は保持）
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const itemRoom = (data.roomId || 'general').trim().toLowerCase();
@@ -770,14 +868,13 @@
         }
       }
       
-      // ローカル側の現在のルーム発言も削除
       localAllTranscripts = localAllTranscripts.filter(item => item.roomId !== currentRoomId);
       transcriptItems = [];
       renderTranscriptList();
       showToast(`ルーム「${currentRoomId}」の会話ログを消去しました`);
     };
 
-    function renderTranscriptList() {
+    async function renderTranscriptList() {
       logCountBadge.textContent = `${transcriptItems.length} 件`;
       tickerEntryCount.textContent = `${transcriptItems.length} 件`;
 
@@ -791,7 +888,10 @@
       messagesList.classList.remove('hidden');
       messagesList.innerHTML = '';
 
-      transcriptItems.forEach((item, index) => {
+      for (let index = 0; index < transcriptItems.length; index++) {
+        const item = transcriptItems[index];
+        const displayText = await decryptText(item.text, currentKey);
+
         const row = document.createElement('div');
         row.className = "group p-3 rounded-[12px] bg-[#fbfaf8] border border-[#e5e7eb] hover:border-[#6d6c6b] transition-all";
         row.innerHTML = `
@@ -805,23 +905,23 @@
               コピー
             </button>
           </div>
-          <p class="text-xs text-[#0c0a08] leading-relaxed break-words pl-3.5 border-l border-[#e5e7eb]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">${escapeHtml(item.text)}</p>
+          <p class="text-xs text-[#0c0a08] leading-relaxed break-words pl-3.5 border-l border-[#e5e7eb]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">${escapeHtml(displayText)}</p>
         `;
         messagesList.appendChild(row);
-      });
+      }
 
       messagesList.querySelectorAll('.btn-copy-line').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const idx = parseInt(btn.getAttribute('data-index'), 10);
           if (transcriptItems[idx]) {
-            copyTextToClipboard(`[${transcriptItems[idx].timestamp}] ${transcriptItems[idx].speaker}: ${transcriptItems[idx].text}`);
+            const dec = await decryptText(transcriptItems[idx].text, currentKey);
+            copyTextToClipboard(`[${transcriptItems[idx].timestamp}] ${transcriptItems[idx].speaker}: ${dec}`);
             showToast("発言内容をクリップボードにコピーしました");
           }
         });
       });
 
-      // 自動スクロール実行
       scrollToBottom(true);
     }
 
@@ -835,50 +935,53 @@
         .replace(/'/g, '&#039;');
     }
 
+    // 接続ルーム・合言葉の適用ボタン
     document.getElementById('btn-join-room').addEventListener('click', () => {
-      const newRoom = inputRoomId.value.trim().toLowerCase();
-      if (!newRoom) {
-        showToast("ルーム名を入力してください", "error");
-        return;
-      }
-      if (newRoom === currentRoomId) {
-        showToast(`すでにルーム「${currentRoomId}」に参加しています`);
-        return;
-      }
+      const newRoom = inputRoomId.value.trim().toLowerCase() || 'general';
+      const newKey = (inputKeyEl ? inputKeyEl.value.trim() : '');
+
       currentRoomId = newRoom;
+      currentKey = newKey;
       roomBadge.textContent = currentRoomId;
       tickerRoomName.textContent = currentRoomId;
-      
-      // Sandbox and blob: URL safety check for pushState
-      try {
-        if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.set('room', currentRoomId);
-          window.history.pushState({}, '', newUrl);
-        }
-      } catch (err) {
-        console.warn("History pushState skipped in sandbox/blob context:", err);
-      }
+      updateKeyUI();
+      updateCurrentUrl();
 
-      showToast(`ルームを切り替えました: ${currentRoomId}`);
+      showToast(`ルーム:「${currentRoomId}」${currentKey ? ' (合言葉設定済)' : ''} に接続しました`);
       transcriptItems = [];
       renderTranscriptList();
       listenToRoomData(currentRoomId);
     });
 
     document.getElementById('btn-copy-room-link').addEventListener('click', () => {
-      if (window.location.protocol === 'blob:' || window.location.protocol === 'about:') {
-        copyTextToClipboard(currentRoomId);
-        showToast(`ルームID「${currentRoomId}」をコピーしました`);
-      } else {
-        const newUrl = new URL(window.location.origin + window.location.pathname);
-        newUrl.searchParams.set('room', currentRoomId);
-        newUrl.searchParams.set('view', currentViewMode);
-        if (currentEncryptionKey) {
-          newUrl.searchParams.set('key', currentEncryptionKey);
+      try {
+        // 現在のURLパスから viewer.html のURLを自動構築
+        let baseUrl = window.location.origin + window.location.pathname;
+        if (baseUrl.endsWith('/') || baseUrl.endsWith('/index.html')) {
+          baseUrl = baseUrl.replace(/\/index\.html$/, '').replace(/\/$/, '') + '/viewer.html';
+        } else {
+          const lastSlash = baseUrl.lastIndexOf('/');
+          baseUrl = baseUrl.substring(0, lastSlash + 1) + 'viewer.html';
         }
-        copyTextToClipboard(newUrl.toString());
-        showToast("合言葉キー付きの招待URLをコピーしました");
+
+        const shareUrlObj = new URL(baseUrl);
+        shareUrlObj.searchParams.set('room', currentRoomId);
+        if (currentKey) {
+          shareUrlObj.searchParams.set('key', currentKey);
+        }
+
+        const fullShareUrl = shareUrlObj.toString();
+        copyTextToClipboard(fullShareUrl);
+        
+        const toastMsg = currentKey 
+          ? `閲覧用URL (合言葉含む) をコピーしました: ${currentRoomId}` 
+          : `閲覧用URL をコピーしました: ${currentRoomId}`;
+        showToast(toastMsg);
+      } catch (err) {
+        console.error("URL generation error:", err);
+        // フォールバック: ルーム名とキーの文字列をコピー
+        copyTextToClipboard(currentKey ? `ルーム: ${currentRoomId} / 合言葉: ${currentKey}` : currentRoomId);
+        showToast("ルーム情報をコピーしました");
       }
     });
 
