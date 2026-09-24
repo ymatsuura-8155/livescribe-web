@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiveScribe — リアルタイム音声文字起こし &amp; 議事録共有</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400&family=IBM+Plex+Mono:wght@400&family=Noto+Sans+JP:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --color-highlighter-yellow: #e4f222;
+      --color-ink: #0c0a08;
+      --color-obsidian: #1a1919;
+      --color-paper: #ffffff;
+      --color-bone: #f4f2f0;
+      --color-ash: #6d6c6b;
+      --color-hairline: #e5e7eb;
+      --color-smoke: #d3d3d3;
+      --font-lausanne: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", 'Noto Sans JP', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+    }
+
+    body {
+      background-color: var(--color-bone);
+      color: var(--color-ink);
+      font-family: var(--font-lausanne);
+      font-weight: 400;
+      font-feature-settings: "ss01" on;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono-ramp {
+      font-family: var(--font-mono);
+      font-weight: 400;
+    }
+
+    .editorial-label {
+      font-size: 10px;
+      line-height: 2.2;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-feature-settings: "ss01" on;
+    }
+
+    .card-ramp {
+      background-color: var(--color-paper);
+      border: 1px solid var(--color-hairline);
+      border-radius: 16px;
+      box-shadow: none;
+    }
+
+    .btn-highlighter {
+      background-color: var(--color-highlighter-yellow);
+      color: var(--color-ink);
+      border-radius: 6px;
+      font-weight: 400;
+      transition: opacity 0.2s ease, transform 0.1s ease;
+    }
+    .btn-highlighter:hover {
+      opacity: 0.92;
+    }
+    .btn-highlighter:active {
+      transform: scale(0.99);
+    }
+
+    .btn-outlined {
+      background-color: transparent;
+      color: var(--color-ink);
+      border: 1px solid var(--color-ink);
+      border-radius: 6px;
+      font-weight: 400;
+      transition: background-color 0.2s ease;
+    }
+    .btn-outlined:hover {
+      background-color: rgba(12, 10, 8, 0.05);
+    }
+
+    .btn-ghost-ramp {
+      background-color: transparent;
+      color: var(--color-ink);
+      border: 1px solid var(--color-hairline);
+      border-radius: 6px;
+      font-weight: 400;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .btn-ghost-ramp:hover {
+      background-color: var(--color-bone);
+      border-color: #c9cbcf;
+    }
+
+    .input-ramp {
+      border-radius: 10px;
+      background-color: var(--color-paper);
+      border: 1px solid rgba(33, 33, 33, 0.15);
+      color: var(--color-ink);
+      transition: border-color 0.2s ease;
+    }
+    .input-ramp:focus {
+      outline: none;
+      border-color: var(--color-ink);
+    }
+
+    .active-glow {
+      box-shadow: 0 0 0 3px rgba(228, 242, 34, 0.45);
+    }
+
+    .scrollbar-ramp::-webkit-scrollbar {
+      width: 5px;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-thumb {
+      background: #e5e7eb;
+      border-radius: 4px;
+    }
+    .scrollbar-ramp::-webkit-scrollbar-thumb:hover {
+      background: #c9cbcf;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-[#e4f222] selection:text-[#0c0a08]">
+
+  <!-- Top Announcement Bar (Ramp Style: 40px height, hairline bottom) -->
+  <div class="h-10 bg-white border-b border-[#e5e7eb] px-6 flex items-center justify-between text-[13px] text-[#6d6c6b]">
+    <div class="max-w-[1200px] w-full mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
+        <span>リアルタイム音声認識インテリジェンス。発話を即座にテキスト化し関係者へ同期します。</span>
+      </div>
+      <div class="hidden sm:flex items-center space-x-3 text-xs">
+        <span class="editorial-label text-[#6d6c6b]">接続状態:</span>
+        <span id="sync-status-text" class="text-[#0c0a08] font-normal">接続完了</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticky Navigation Bar (102px total cluster, inset highlight, white canvas) -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e5e7eb]" style="box-shadow: rgba(255, 255, 255, 0.6) 0px 0px 2px 0px inset;">
+    <div class="max-w-[1200px] mx-auto h-[62px] px-6 flex items-center justify-between">
+      <!-- Brand & Section -->
+      <div class="flex items-center space-x-3">
+        <div class="w-7 h-7 bg-[#0c0a08] text-[#e4f222] flex items-center justify-center font-serif text-sm rounded-[6px] select-none">
+          R
+        </div>
+        <span class="text-[18px] tracking-tight font-normal text-[#0c0a08]">LiveScribe</span>
+        <span class="text-[#e5e7eb]">/</span>
+        <span class="editorial-label text-[#6d6c6b]">デスクコンソール</span>
+      </div>
+
+      <!-- Center: View Mode Tabs -->
+      <div class="hidden md:flex items-center space-x-1 p-1 bg-[#f4f2f0] rounded-[8px] border border-[#e5e7eb] text-xs">
+        <button data-view="split" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all bg-[#0c0a08] text-white">
+          <span>分割表示</span>
+        </button>
+        <button data-view="feed" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
+          <span>フィード専用</span>
+        </button>
+        <button data-view="controls" class="tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]">
+          <span>操作パネル</span>
+        </button>
+      </div>
+
+      <!-- Room & Actions -->
+      <div class="flex items-center space-x-3">
+        <!-- Room Tag -->
+        <div class="flex items-center h-8 px-3 bg-[#f4f2f0] rounded-[6px] border border-[#e5e7eb] text-xs">
+          <span class="editorial-label text-[#6d6c6b] mr-1.5">ルーム:</span>
+          <span id="current-room-badge" class="text-[#0c0a08]">general</span>
+          <button id="btn-copy-room-link" title="共有ルームURLをコピー" class="ml-2.5 text-[#6d6c6b] hover:text-[#0c0a08] transition-colors">
+            <i class="fa-regular fa-clone text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Highlighter Demo Action -->
+        <button id="btn-copy-all" class="btn-outlined h-8 px-3 text-xs flex items-center space-x-1.5">
+          <i class="fa-regular fa-copy text-[11px]"></i>
+          <span>全文コピー</span>
+        </button>
+
+        <!-- Clear Action in Header -->
+        <button id="btn-open-clear-modal" class="btn-ghost-ramp h-8 px-3 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="会話ログを消去">
+          <i class="fa-regular fa-trash-can text-[11px]"></i>
+          <span>会話をクリア</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Counter Dark Band (Ramp signature inverted strip) -->
+  <div class="bg-[#1a1919] text-white py-2.5 px-6 border-b border-[#0c0a08]">
+    <div class="max-w-[1200px] mx-auto flex items-center justify-between text-xs">
+      <div class="flex items-center space-x-6 overflow-x-auto">
+        <div class="flex items-center space-x-2 shrink-0">
+          <span class="editorial-label text-[#6d6c6b]">接続ルーム:</span>
+          <span class="text-[#e4f222] text-[13px]" id="ticker-room-name">general</span>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0">
+          <span class="editorial-label text-[#6d6c6b]">表示:</span>
+          <span id="ticker-view-mode" class="text-white text-[13px]">分割表示</span>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0 md:hidden">
+          <button data-view="split" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-[#e4f222]">分割</button>
+          <button data-view="feed" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">閲覧</button>
+          <button data-view="controls" class="mobile-tab-btn px-2 py-0.5 bg-[#2b2929] rounded text-[11px] text-neutral-300">操作</button>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0">
+          <span class="editorial-label text-[#6d6c6b]">記録件数:</span>
+          <span id="ticker-entry-count" class="text-white text-[13px]">0 件</span>
+        </div>
+        <div class="flex items-center space-x-2 shrink-0">
+          <span class="editorial-label text-[#6d6c6b]">音声入力状態:</span>
+          <span id="ticker-audio-status" class="text-[#6d6c6b] text-[13px]">待機中</span>
+        </div>
+      </div>
+      <div class="hidden md:flex items-center space-x-2 text-[#6d6c6b]">
+        <span class="editorial-label">ACCENT:</span>
+        <span class="w-2.5 h-2.5 rounded-[2px] bg-[#e4f222]"></span>
+        <span class="editorial-label text-white">#E4F222</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid Layout (Max width 1200px, 20-24px card padding, 16px radius) -->
+  <main id="main-content-area" class="flex-1 max-w-[1200px] w-full mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6">
+
+    <!-- Left Column: Audio Controls & Room Configuration -->
+    <aside id="controls-column" class="w-full lg:w-[330px] flex flex-col space-y-5 shrink-0">
+      
+      <!-- Audio Capture Card (16px radius, border elevation) -->
+      <div class="card-ramp p-5 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-[#e5e7eb]">
+          <span class="editorial-label text-[#0c0a08]">音声レコーダー</span>
+          <span id="mic-status-badge" class="editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#6d6c6b]">待機中</span>
+        </div>
+
+        <!-- Big Highlight Mic Button -->
+        <div class="py-2 flex flex-col items-center justify-center space-y-3">
+          <button id="btn-toggle-rec" class="btn-highlighter w-full py-3.5 px-4 text-sm flex items-center justify-center space-x-2.5 shadow-sm">
+            <i class="fa-solid fa-microphone text-base"></i>
+            <span id="rec-btn-label">音声入力を開始</span>
+          </button>
+          <p id="rec-status-hint" class="text-xs text-[#6d6c6b] text-center">
+            ボタンを押してブラウザ音声認識を開始します
+          </p>
+        </div>
+
+        <!-- Level Meter -->
+        <div class="space-y-1.5 pt-1">
+          <div class="flex justify-between items-center text-xs">
+            <span class="editorial-label text-[#6d6c6b]">入力レベル</span>
+            <span id="meter-value" class="text-xs text-[#0c0a08]">0%</span>
+          </div>
+          <div class="w-full bg-[#f4f2f0] h-2 rounded-[4px] border border-[#e5e7eb] overflow-hidden">
+            <div id="audio-level-bar" class="bg-[#e4f222] border-r border-[#0c0a08] h-full w-0 transition-all duration-75"></div>
+          </div>
+        </div>
+
+        <!-- Speaker Name Input (10px radius) -->
+        <div class="space-y-1.5 pt-2">
+          <label class="block editorial-label text-[#6d6c6b]">話者名（発言者表示）</label>
+          <input id="input-speaker-name" type="text" value="話者 1" class="input-ramp w-full px-3 py-2 text-xs text-[#0c0a08]">
+        </div>
+      </div>
+
+      <!-- Room Session Card -->
+      <div class="card-ramp p-5 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-[#e5e7eb]">
+          <span class="editorial-label text-[#0c0a08]">共有ルーム設定</span>
+          <span class="editorial-label text-[#6d6c6b]">同期</span>
+        </div>
+
+        <p class="text-xs text-[#6d6c6b] leading-relaxed">
+          同じルームIDに参加している関係者のPC画面へ、発言ログがリアルタイムに自動同期されます。
+        </p>
+
+        <!-- Composite Input + Action -->
+        <div class="flex space-x-2 pt-1">
+          <input id="input-room-id" type="text" placeholder="例: 役員会議-01" class="input-ramp flex-1 px-3 py-2 text-xs text-[#0c0a08]">
+          <button id="btn-join-room" class="btn-outlined px-4 py-2 text-xs">
+            参加
+          </button>
+        </div>
+      </div>
+
+      <!-- Export & AI Minutes -->
+      <div class="card-ramp p-5 space-y-3">
+        <div class="pb-2 border-b border-[#e5e7eb]">
+          <span class="editorial-label text-[#0c0a08]">データ保存 &amp; 議事録出力</span>
+        </div>
+
+        <!-- 3 Export buttons -->
+        <div class="grid grid-cols-3 gap-2">
+          <button id="btn-export-txt" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+            <i class="fa-regular fa-file-lines text-xs text-[#6d6c6b]"></i>
+            <span>TXT保存</span>
+          </button>
+          <button id="btn-export-csv" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+            <i class="fa-solid fa-file-csv text-xs text-[#6d6c6b]"></i>
+            <span>CSV保存</span>
+          </button>
+          <button id="btn-export-md" class="btn-ghost-ramp py-2 text-xs flex flex-col items-center justify-center space-y-1">
+            <i class="fa-brands fa-markdown text-xs text-[#6d6c6b]"></i>
+            <span>MD保存</span>
+          </button>
+        </div>
+
+        <!-- AI Minutes Action (Highlighted CTA) -->
+        <div class="pt-2">
+          <button id="btn-ai-summary" class="btn-highlighter w-full py-2.5 px-3 text-xs flex items-center justify-center space-x-2">
+            <span class="inline-block w-2 h-2 bg-[#0c0a08] rounded-full"></span>
+            <span>AI要約・議事録作成 (GEMINI)</span>
+          </button>
+        </div>
+
+        <div class="pt-2 text-center">
+          <button id="btn-clear-transcript" class="editorial-label text-[#6d6c6b] hover:text-[#0c0a08] transition-colors">
+            [ ログバッファを消去 ]
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Center Column: Transcription Desk Feed -->
+    <section id="feed-column" class="flex-1 flex flex-col card-ramp overflow-hidden min-h-[580px]">
+      
+      <!-- Feed Header -->
+      <div class="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between bg-white">
+        <div class="flex items-center space-x-3">
+          <span class="text-sm font-normal text-[#0c0a08]">文字起こしフィード</span>
+          <span id="log-count" class="editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#0c0a08]">0 件</span>
+          <span id="feed-view-badge" class="hidden editorial-label px-2 py-0.5 rounded-[6px] bg-[#e4f222] text-[#0c0a08]">全幅閲覧モード</span>
+        </div>
+
+        <div class="flex items-center space-x-3 text-xs">
+          <!-- Font Size Adjustments -->
+          <div class="flex items-center border border-[#e5e7eb] rounded-[6px] overflow-hidden bg-white">
+            <button id="btn-font-smaller" class="px-2.5 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0] border-r border-[#e5e7eb]" title="文字を小さく">
+              A-
+            </button>
+            <button id="btn-font-larger" class="px-2.5 py-1 text-xs text-[#6d6c6b] hover:text-[#0c0a08] hover:bg-[#f4f2f0]" title="文字を大きく">
+              A+
+            </button>
+          </div>
+          <button id="btn-feed-clear" class="btn-ghost-ramp h-7 px-2.5 text-xs flex items-center space-x-1.5 text-[#6d6c6b] hover:border-red-400 hover:text-red-600 transition-colors" title="現在の会話ログを消去">
+            <i class="fa-regular fa-trash-can text-[10px]"></i>
+            <span>会話をクリア</span>
+          </button>
+          <label class="flex items-center space-x-1.5 cursor-pointer text-[#6d6c6b] select-none hover:text-[#0c0a08]">
+            <input id="cb-autoscroll" type="checkbox" checked class="rounded-[4px] border-[#e5e7eb] text-[#0c0a08] focus:ring-0">
+            <span class="editorial-label">自動スクロール</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Messages Scroll Area -->
+      <div id="transcription-container" class="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-ramp bg-white">
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-8">
+          <div class="w-12 h-12 rounded-[12px] bg-[#f4f2f0] border border-[#e5e7eb] flex items-center justify-center text-base text-[#6d6c6b] mb-3">
+            <i class="fa-solid fa-feather-pointed"></i>
+          </div>
+          <h3 class="text-base font-normal text-[#0c0a08] mb-1">発言ログはまだありません</h3>
+          <p class="text-xs text-[#6d6c6b] max-w-sm leading-relaxed">
+            左側の <span class="bg-[#e4f222] px-1 text-[#0c0a08]">音声入力を開始</span> をクリックするか、下の入力欄から手動でメモを追加できます。接続中のすべての画面に同期されます。
+          </p>
+        </div>
+
+        <!-- Dynamic Message List -->
+        <div id="messages-list" class="space-y-3 hidden"></div>
+
+        <!-- Live Interim Speech Card (Active yellow tint) -->
+        <div id="interim-card" class="hidden p-4 rounded-[12px] border border-[#e4f222] bg-[#fbfde6]">
+          <div class="flex items-center justify-between mb-1.5">
+            <span id="interim-speaker" class="editorial-label text-[#0c0a08]">話者 1</span>
+            <span class="editorial-label px-1.5 py-0.5 rounded-[4px] bg-[#e4f222] text-[#0c0a08]">音声を認識中...</span>
+          </div>
+          <p id="interim-text" class="text-sm text-[#0c0a08] leading-relaxed italic"></p>
+        </div>
+
+      </div>
+
+      <!-- Bottom Manual Input Bar (Composite CTA design) -->
+      <div class="p-4 bg-[#f4f2f0] border-t border-[#e5e7eb]">
+        <form id="form-manual-input" class="flex items-center space-x-2">
+          <input id="input-manual-text" type="text" placeholder="メモや補足をここに入力して Enter を押してください..." class="input-ramp flex-1 px-4 py-2 text-xs text-[#0c0a08] placeholder:text-[#6d6c6b]">
+          <button type="submit" class="btn-outlined px-4 py-2 text-xs">
+            追加
+          </button>
+        </form>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- AI Report Modal (Ramp card style: 16px radius, hairline border, shadow-free) -->
+  <div id="ai-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="card-ramp max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden bg-white">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-[#e5e7eb] flex items-center justify-between bg-[#f4f2f0]">
+        <div class="flex items-center space-x-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#e4f222] border border-[#0c0a08]"></span>
+          <h3 class="text-sm font-normal text-[#0c0a08]">AI議事録 &amp; エグゼクティブサマリー</h3>
+        </div>
+        <button id="btn-close-modal" class="editorial-label text-[#6d6c6b] hover:text-[#0c0a08]">
+          [ 閉じる ]
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto flex-1 scrollbar-ramp space-y-4">
+        <div id="ai-loading" class="hidden flex flex-col items-center justify-center py-12 space-y-3">
+          <div class="w-6 h-6 border-2 border-[#0c0a08] border-t-[#e4f222] rounded-full animate-spin"></div>
+          <p id="ai-loading-text" class="text-xs text-[#6d6c6b]">Gemini 最新モデルを検出・接続し、議事録を生成しています...</p>
+        </div>
+        
+        <div id="ai-result-content" class="text-xs text-[#0c0a08] leading-relaxed whitespace-pre-wrap">
+          <!-- Rendered AI Output -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 bg-[#f4f2f0] border-t border-[#e5e7eb] flex items-center justify-between">
+        <span id="ai-model-tag" class="editorial-label text-[#6d6c6b]">POWERED BY GEMINI (最新モデル自動検出)</span>
+        <div class="flex space-x-2">
+          <button id="btn-copy-summary" class="btn-ghost-ramp px-3 py-1.5 text-xs">
+            コピー
+          </button>
+          <button id="btn-download-summary" class="btn-highlighter px-4 py-1.5 text-xs">
+            .TXTで保存
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Confirmation Modal (Custom dialog instead of native confirm/alert) -->
+  <div id="clear-confirm-modal" class="fixed inset-0 z-50 bg-[#0c0a08]/30 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="card-ramp max-w-md w-full p-6 space-y-4 bg-white border border-[#e5e7eb]">
+      <div class="flex items-center space-x-3 text-[#0c0a08]">
+        <div class="w-8 h-8 rounded-[6px] bg-[#f4f2f0] border border-[#e5e7eb] flex items-center justify-center text-red-600">
+          <i class="fa-regular fa-trash-can text-sm"></i>
+        </div>
+        <h3 class="text-sm font-normal text-[#0c0a08]">会話ログの消去確認</h3>
+      </div>
+      <p class="text-xs text-[#6d6c6b] leading-relaxed">
+        現在のルーム「<span id="clear-room-name" class="text-[#0c0a08] font-normal">general</span>」に記録されているすべての発言ログを消去します。この操作は取り消せません。よろしいですか？
+      </p>
+      <div class="flex items-center justify-end space-x-2 pt-2">
+        <button id="btn-cancel-clear" class="btn-ghost-ramp px-4 py-2 text-xs">
+          キャンセル
+        </button>
+        <button id="btn-confirm-clear" class="btn-outlined px-4 py-2 text-xs bg-[#1a1919] text-white hover:bg-red-600 hover:border-red-600 transition-colors">
+          消去を実行
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification (Ramp warm minimalist HUD) -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-6 opacity-0 pointer-events-none transition-all duration-200 bg-[#0c0a08] text-white px-4 py-2.5 rounded-[6px] border border-[#1a1919] flex items-center space-x-2.5 text-xs">
+    <span id="toast-prefix" class="w-2 h-2 rounded-full bg-[#e4f222]"></span>
+    <span id="toast-message" class="text-neutral-200">通知</span>
+  </div>
+
+  <!-- Realtime Cloud Firebase Architecture -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      onSnapshot,
+      getDocs,
+      deleteDoc,
+      doc
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    let auth = null;
+    let db = null;
+    let currentUser = null;
+    let unsubscribeSnapshot = null;
+    let transcriptItems = [];
+    // ローカル動作時の全ログ保存用（ルーム別分離）
+    let localAllTranscripts = [];
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentRoomId = (urlParams.get('room') || 'general').trim().toLowerCase();
+    let currentViewMode = (urlParams.get('view') || 'split').trim().toLowerCase();
+    if (!['split', 'feed', 'controls'].includes(currentViewMode)) {
+      currentViewMode = 'split';
+    }
+
+    const roomBadge = document.getElementById('current-room-badge');
+    const tickerRoomName = document.getElementById('ticker-room-name');
+    const inputRoomId = document.getElementById('input-room-id');
+    const syncStatusText = document.getElementById('sync-status-text');
+    const messagesList = document.getElementById('messages-list');
+    const emptyState = document.getElementById('empty-state');
+    const logCountBadge = document.getElementById('log-count');
+    const tickerEntryCount = document.getElementById('ticker-entry-count');
+    const autoScrollCb = document.getElementById('cb-autoscroll');
+    const transcriptionContainer = document.getElementById('transcription-container');
+    const controlsColumn = document.getElementById('controls-column');
+    const feedColumn = document.getElementById('feed-column');
+    const feedViewBadge = document.getElementById('feed-view-badge');
+    const tickerViewMode = document.getElementById('ticker-view-mode');
+    const mainContentArea = document.getElementById('main-content-area');
+
+    roomBadge.textContent = currentRoomId;
+    tickerRoomName.textContent = currentRoomId;
+    inputRoomId.value = currentRoomId;
+
+    // View switcher tab management
+    function setViewMode(mode, updateUrl = true) {
+      currentViewMode = mode;
+
+      const tabButtons = document.querySelectorAll('.tab-view-btn');
+      tabButtons.forEach(btn => {
+        if (btn.getAttribute('data-view') === mode) {
+          btn.className = "tab-view-btn px-3 py-1.5 rounded-[6px] transition-all bg-[#0c0a08] text-white";
+        } else {
+          btn.className = "tab-view-btn px-3 py-1.5 rounded-[6px] transition-all text-[#6d6c6b] hover:text-[#0c0a08]";
+        }
+      });
+
+      const mobileBtns = document.querySelectorAll('.mobile-tab-btn');
+      mobileBtns.forEach(btn => {
+        if (btn.getAttribute('data-view') === mode) {
+          btn.className = "mobile-tab-btn px-2 py-1 bg-[#0c0a08] rounded text-[11px] text-[#e4f222]";
+        } else {
+          btn.className = "mobile-tab-btn px-2 py-1 bg-[#2b2929] rounded text-[11px] text-neutral-300";
+        }
+      });
+
+      if (mode === 'feed') {
+        controlsColumn.classList.add('hidden');
+        feedColumn.classList.remove('hidden');
+        feedColumn.classList.add('w-full');
+        feedViewBadge.classList.remove('hidden');
+        tickerViewMode.textContent = "フィード専用";
+      } else if (mode === 'controls') {
+        controlsColumn.classList.remove('hidden');
+        controlsColumn.classList.remove('lg:w-[330px]');
+        controlsColumn.classList.add('max-w-xl', 'mx-auto');
+        feedColumn.classList.add('hidden');
+        feedViewBadge.classList.add('hidden');
+        tickerViewMode.textContent = "操作パネル";
+      } else {
+        // split
+        controlsColumn.classList.remove('hidden', 'max-w-xl', 'mx-auto');
+        controlsColumn.classList.add('lg:w-[330px]');
+        feedColumn.classList.remove('hidden', 'w-full');
+        feedViewBadge.classList.add('hidden');
+        tickerViewMode.textContent = "分割表示";
+      }
+
+      if (updateUrl) {
+        try {
+          if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('view', mode);
+            window.history.pushState({}, '', newUrl);
+          }
+        } catch (err) {
+          console.warn("View mode history push skipped:", err);
+        }
+      }
+    }
+
+    document.querySelectorAll('.tab-view-btn, .mobile-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetView = btn.getAttribute('data-view');
+        setViewMode(targetView);
+      });
+    });
+
+    // Font size adjustments in the transcript feed
+    let currentFontSizeRem = 0.875; // default 14px (text-sm)
+    const btnFontSmaller = document.getElementById('btn-font-smaller');
+    const btnFontLarger = document.getElementById('btn-font-larger');
+
+    // 確実な自動スクロール制御 (外部スクリプトからも呼び出せるよう window にグローバル公開)
+    window.scrollToBottom = function scrollToBottom(smooth = false) {
+      if (!autoScrollCb || !autoScrollCb.checked) return;
+      
+      // DOMツリーの更新と再レイアウトが完了したタイミングでスクロールを実行
+      setTimeout(() => {
+        if (!transcriptionContainer) return;
+        
+        // 1. コンテナ自身のスクロール位置を最下部に更新
+        transcriptionContainer.scrollTo({
+          top: transcriptionContainer.scrollHeight + 1000,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+
+        // 2. 最下部にある最新要素（認識中カード、または最後の発言行）を画面内に確実に収める
+        const interimEl = document.getElementById('interim-card');
+        const target = (interimEl && !interimEl.classList.contains('hidden'))
+          ? interimEl
+          : ((messagesList && messagesList.lastElementChild) || emptyState);
+
+        if (target && typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+        }
+      }, 60);
+    };
+
+    // 自動スクロールチェックボックスのON切り替え時にも即スクロール
+    if (autoScrollCb) {
+      autoScrollCb.addEventListener('change', () => {
+        if (autoScrollCb.checked) {
+          window.scrollToBottom(true);
+        }
+      });
+    }
+
+    if (btnFontSmaller) {
+      btnFontSmaller.addEventListener('click', () => {
+        currentFontSizeRem = Math.max(0.75, currentFontSizeRem - 0.1);
+        applyFontSize();
+      });
+    }
+
+    if (btnFontLarger) {
+      btnFontLarger.addEventListener('click', () => {
+        currentFontSizeRem = Math.min(1.35, currentFontSizeRem + 0.1);
+        applyFontSize();
+      });
+    }
+
+    function applyFontSize() {
+      if (!messagesList) return;
+      const paras = messagesList.querySelectorAll('p');
+      paras.forEach(p => {
+        p.style.fontSize = `${currentFontSizeRem}rem`;
+        p.style.lineHeight = `${currentFontSizeRem * 1.6}rem`;
+      });
+    }
+
+    async function initFirebase() {
+      try {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
+        let firebaseConfig = {
+          apiKey: "AIzaSyCWAlwVwJ9HHSlygzYpUPPM6CloWdohcO8",
+  authDomain: "livescribe-demo.firebaseapp.com",
+  projectId: "livescribe-demo",
+  storageBucket: "livescribe-demo.firebasestorage.app",
+  messagingSenderId: "946069708273",
+  appId: "1:946069708273:web:b97fd5c6ec850c41ccb850"
+        };
+        if (typeof __firebase_config !== 'undefined') {
+          firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+          firebaseConfig = {
+            apiKey: "demo-key",
+            authDomain: "demo.firebaseapp.com",
+            projectId: "demo-project"
+          };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+        currentUser = auth.currentUser;
+
+        syncStatusText.textContent = "同期接続中";
+        listenToRoomData(currentRoomId);
+      } catch (err) {
+        console.warn("Using local buffer state:", err);
+        syncStatusText.textContent = "ローカル動作";
+        filterLocalTranscripts();
+      }
+    }
+
+    function filterLocalTranscripts() {
+      transcriptItems = localAllTranscripts.filter(item => item.roomId === currentRoomId);
+      renderTranscriptList();
+    }
+
+    function listenToRoomData(roomId) {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
+      if (!db || !currentUser) {
+        filterLocalTranscripts();
+        return;
+      }
+
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
+      // 単一の公認コレクション 'transcripts' から取得し、メモリ上で roomId を完全分離
+      const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+
+      unsubscribeSnapshot = onSnapshot(transcriptsCol, (snapshot) => {
+        const docs = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          // 現在参加中のルームの発言のみを厳密に抽出
+          const itemRoom = (data.roomId || 'general').trim().toLowerCase();
+          if (itemRoom === currentRoomId) {
+            docs.push({ id: docSnap.id, ...data });
+          }
+        });
+
+        // 作成時刻順でソート
+        docs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        transcriptItems = docs;
+        renderTranscriptList();
+      }, (error) => {
+        console.error("Sync error:", error);
+        showToast("データの同期中にエラーが発生しました", "error");
+      });
+    }
+
+    window.saveTranscriptEntry = async function(text, speaker) {
+      if (!text || !text.trim()) return;
+      const cleanText = text.trim();
+      const speakerName = (speaker && speaker.trim()) ? speaker.trim() : '話者 1';
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // 発言データに必ず参加中ルームIDを付与
+      const newEntry = {
+        roomId: currentRoomId,
+        text: cleanText,
+        speaker: speakerName,
+        timestamp: timeStr,
+        createdAt: Date.now()
+      };
+
+      if (db && currentUser) {
+        try {
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
+          const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+          await addDoc(transcriptsCol, newEntry);
+        } catch (err) {
+          console.error("Firestore write fallback:", err);
+          newEntry.id = 'local_' + Date.now();
+          localAllTranscripts.push(newEntry);
+          filterLocalTranscripts();
+        }
+      } else {
+        newEntry.id = 'local_' + Date.now();
+        localAllTranscripts.push(newEntry);
+        filterLocalTranscripts();
+      }
+    };
+
+    window.clearAllTranscriptEntries = async function() {
+      if (db && currentUser) {
+        try {
+          const appId = typeof __app_id !== 'undefined' ? __app_id : 'live-scribe-app';
+          const transcriptsCol = collection(db, 'artifacts', appId, 'public', 'data', 'transcripts');
+          const snapshot = await getDocs(transcriptsCol);
+          const deletePromises = [];
+          
+          // 現在のルームに属するドキュメントのみを削除（他ルームの会話は保持）
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const itemRoom = (data.roomId || 'general').trim().toLowerCase();
+            if (itemRoom === currentRoomId) {
+              deletePromises.push(deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'transcripts', docSnap.id)));
+            }
+          });
+          await Promise.all(deletePromises);
+        } catch (err) {
+          console.error("Firestore batch delete error:", err);
+        }
+      }
+      
+      // ローカル側の現在のルーム発言も削除
+      localAllTranscripts = localAllTranscripts.filter(item => item.roomId !== currentRoomId);
+      transcriptItems = [];
+      renderTranscriptList();
+      showToast(`ルーム「${currentRoomId}」の会話ログを消去しました`);
+    };
+
+    function renderTranscriptList() {
+      logCountBadge.textContent = `${transcriptItems.length} 件`;
+      tickerEntryCount.textContent = `${transcriptItems.length} 件`;
+
+      if (transcriptItems.length === 0) {
+        messagesList.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      messagesList.classList.remove('hidden');
+      messagesList.innerHTML = '';
+
+      transcriptItems.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = "group p-3 rounded-[12px] bg-[#fbfaf8] border border-[#e5e7eb] hover:border-[#6d6c6b] transition-all";
+        row.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center space-x-2 text-xs">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-[#0c0a08]"></span>
+              <span class="text-[#0c0a08] font-normal">${escapeHtml(item.speaker || '話者')}</span>
+              <span class="text-[#6d6c6b] text-[11px]">${escapeHtml(item.timestamp || '')}</span>
+            </div>
+            <button data-index="${index}" class="btn-copy-line opacity-0 group-hover:opacity-100 editorial-label text-[#6d6c6b] hover:text-[#0c0a08] px-1.5 py-0.5 border border-[#e5e7eb] rounded-[4px] bg-white transition-opacity" title="この発言をコピー">
+              コピー
+            </button>
+          </div>
+          <p class="text-xs text-[#0c0a08] leading-relaxed break-words pl-3.5 border-l border-[#e5e7eb]" style="font-size: ${currentFontSizeRem}rem; line-height: ${currentFontSizeRem * 1.6}rem;">${escapeHtml(item.text)}</p>
+        `;
+        messagesList.appendChild(row);
+      });
+
+      messagesList.querySelectorAll('.btn-copy-line').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.getAttribute('data-index'), 10);
+          if (transcriptItems[idx]) {
+            copyTextToClipboard(`[${transcriptItems[idx].timestamp}] ${transcriptItems[idx].speaker}: ${transcriptItems[idx].text}`);
+            showToast("発言内容をクリップボードにコピーしました");
+          }
+        });
+      });
+
+      // 自動スクロール実行
+      scrollToBottom(true);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    document.getElementById('btn-join-room').addEventListener('click', () => {
+      const newRoom = inputRoomId.value.trim().toLowerCase();
+      if (!newRoom) {
+        showToast("ルーム名を入力してください", "error");
+        return;
+      }
+      if (newRoom === currentRoomId) {
+        showToast(`すでにルーム「${currentRoomId}」に参加しています`);
+        return;
+      }
+      currentRoomId = newRoom;
+      roomBadge.textContent = currentRoomId;
+      tickerRoomName.textContent = currentRoomId;
+      
+      // Sandbox and blob: URL safety check for pushState
+      try {
+        if (window.location.protocol !== 'blob:' && window.location.protocol !== 'about:') {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('room', currentRoomId);
+          window.history.pushState({}, '', newUrl);
+        }
+      } catch (err) {
+        console.warn("History pushState skipped in sandbox/blob context:", err);
+      }
+
+      showToast(`ルームを切り替えました: ${currentRoomId}`);
+      transcriptItems = [];
+      renderTranscriptList();
+      listenToRoomData(currentRoomId);
+    });
+
+    document.getElementById('btn-copy-room-link').addEventListener('click', () => {
+      if (window.location.protocol === 'blob:' || window.location.protocol === 'about:') {
+        copyTextToClipboard(currentRoomId);
+        showToast(`ルームID「${currentRoomId}」をコピーしました`);
+      } else {
+        // Include the current view mode or set view=feed for participants
+        const shareUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(currentRoomId)}&view=${encodeURIComponent(currentViewMode)}`;
+        copyTextToClipboard(shareUrl);
+        showToast("招待用ルームURLをコピーしました");
+      }
+    });
+
+    document.getElementById('form-manual-input').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('input-manual-text');
+      const speaker = document.getElementById('input-speaker-name').value;
+      if (input.value.trim()) {
+        window.saveTranscriptEntry(input.value.trim(), speaker);
+        input.value = '';
+      }
+    });
+
+    const clearConfirmModal = document.getElementById('clear-confirm-modal');
+    const clearRoomName = document.getElementById('clear-room-name');
+    const btnCancelClear = document.getElementById('btn-cancel-clear');
+    const btnConfirmClear = document.getElementById('btn-confirm-clear');
+
+    function openClearModal() {
+      if (transcriptItems.length === 0) {
+        showToast("消去対象の発言ログがありません");
+        return;
+      }
+      clearRoomName.textContent = currentRoomId;
+      clearConfirmModal.classList.remove('hidden');
+    }
+
+    function closeClearModal() {
+      clearConfirmModal.classList.add('hidden');
+    }
+
+    document.getElementById('btn-open-clear-modal').addEventListener('click', openClearModal);
+    document.getElementById('btn-feed-clear').addEventListener('click', openClearModal);
+    document.getElementById('btn-clear-transcript').addEventListener('click', openClearModal);
+
+    btnCancelClear.addEventListener('click', closeClearModal);
+    btnConfirmClear.addEventListener('click', async () => {
+      closeClearModal();
+      if (window.clearAllTranscriptEntries) {
+        await window.clearAllTranscriptEntries();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !clearConfirmModal.classList.contains('hidden')) {
+        closeClearModal();
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setViewMode(currentViewMode, false);
+      initFirebase();
+    });
+  </script>
+
+  <!-- Audio, Speech Recognition, & Export Scripts -->
+  <script>
+    let recognition = null;
+    let isRecognizing = false;
+    let audioContext = null;
+    let analyser = null;
+    let microphoneStream = null;
+    let animFrameId = null;
+
+    const btnToggleRec = document.getElementById('btn-toggle-rec');
+    const recBtnLabel = document.getElementById('rec-btn-label');
+    const recStatusHint = document.getElementById('rec-status-hint');
+    const micStatusBadge = document.getElementById('mic-status-badge');
+    const tickerAudioStatus = document.getElementById('ticker-audio-status');
+    const audioLevelBar = document.getElementById('audio-level-bar');
+    const meterValue = document.getElementById('meter-value');
+    const inputSpeaker = document.getElementById('input-speaker-name');
+    const interimCard = document.getElementById('interim-card');
+    const interimSpeaker = document.getElementById('interim-speaker');
+    const interimText = document.getElementById('interim-text');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function initSpeechRecognition() {
+      if (!SpeechRecognition) {
+        showToast("お使いのブラウザは音声認識に対応していません", "error");
+        recStatusHint.textContent = "音声認識がサポートされていません";
+        btnToggleRec.disabled = true;
+        return null;
+      }
+
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'ja-JP';
+
+      rec.onstart = () => {
+        isRecognizing = true;
+        updateMicUI(true);
+      };
+
+      rec.onresult = (event) => {
+        let finalTranscripts = '';
+        let interimTranscripts = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscripts += transcript;
+          } else {
+            interimTranscripts += transcript;
+          }
+        }
+
+        if (interimTranscripts.trim()) {
+          interimCard.classList.remove('hidden');
+          interimSpeaker.textContent = inputSpeaker.value || '話者 1';
+          interimText.textContent = interimTranscripts;
+          if (typeof window.scrollToBottom === 'function') {
+            window.scrollToBottom(false);
+          }
+        } else {
+          interimCard.classList.add('hidden');
+        }
+
+        if (finalTranscripts.trim()) {
+          interimCard.classList.add('hidden');
+          if (window.saveTranscriptEntry) {
+            window.saveTranscriptEntry(finalTranscripts, inputSpeaker.value);
+          }
+          if (typeof window.scrollToBottom === 'function') {
+            window.scrollToBottom(true);
+          }
+        }
+      };
+
+      rec.onerror = (event) => {
+        console.warn("Speech error:", event.error);
+        if (event.error === 'not-allowed') {
+          showToast("マイクへのアクセスが許可されていません", "error");
+          stopRecognition();
+        }
+      };
+
+      rec.onend = () => {
+        if (isRecognizing) {
+          try {
+            rec.start();
+          } catch (e) {}
+        } else {
+          updateMicUI(false);
+          interimCard.classList.add('hidden');
+        }
+      };
+
+      return rec;
+    }
+
+    async function startAudioMeter() {
+      try {
+        microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+
+        const source = audioContext.createMediaStreamSource(microphoneStream);
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        function updateMeter() {
+          if (!isRecognizing) {
+            audioLevelBar.style.width = '0%';
+            meterValue.textContent = '0%';
+            return;
+          }
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const average = sum / dataArray.length;
+          const percentage = Math.min(100, Math.round((average / 128) * 100));
+          audioLevelBar.style.width = `${percentage}%`;
+          meterValue.textContent = `${percentage}%`;
+          animFrameId = requestAnimationFrame(updateMeter);
+        }
+        updateMeter();
+      } catch (err) {
+        console.warn("Audio meter bypassed:", err);
+      }
+    }
+
+    function stopAudioMeter() {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (microphoneStream) {
+        microphoneStream.getTracks().forEach(track => track.stop());
+        microphoneStream = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+        audioContext = null;
+      }
+      audioLevelBar.style.width = '0%';
+      meterValue.textContent = '0%';
+    }
+
+    function startRecognition() {
+      if (!recognition) {
+        recognition = initSpeechRecognition();
+      }
+      if (!recognition) return;
+
+      try {
+        recognition.start();
+        isRecognizing = true;
+        startAudioMeter();
+        showToast("マイク音声の認識を開始しました");
+      } catch (err) {
+        console.error("Start failed:", err);
+      }
+    }
+
+    function stopRecognition() {
+      isRecognizing = false;
+      if (recognition) {
+        try {
+          recognition.stop();
+        } catch (e) {}
+      }
+      stopAudioMeter();
+      updateMicUI(false);
+      showToast("音声認識を停止しました");
+    }
+
+    function updateMicUI(active) {
+      if (active) {
+        btnToggleRec.classList.add('active-glow');
+        recBtnLabel.textContent = "音声入力を停止";
+        micStatusBadge.textContent = "収音中";
+        micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#e4f222] text-[#0c0a08]";
+        tickerAudioStatus.textContent = "収音中";
+        tickerAudioStatus.className = "text-[#e4f222] text-[13px]";
+        recStatusHint.textContent = "マイクからの音声を認識しています";
+      } else {
+        btnToggleRec.classList.remove('active-glow');
+        recBtnLabel.textContent = "音声入力を開始";
+        micStatusBadge.textContent = "待機中";
+        micStatusBadge.className = "editorial-label px-2 py-0.5 rounded-[6px] bg-[#f4f2f0] text-[#6d6c6b]";
+        tickerAudioStatus.textContent = "待機中";
+        tickerAudioStatus.className = "text-[#6d6c6b] text-[13px]";
+        recStatusHint.textContent = "ボタンを押してブラウザ音声認識を開始します";
+      }
+    }
+
+    btnToggleRec.addEventListener('click', () => {
+      if (isRecognizing) {
+        stopRecognition();
+      } else {
+        startRecognition();
+      }
+    });
+
+    function getFormattedDate() {
+      const d = new Date();
+      return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    }
+
+    function downloadFile(content, fileName, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`保存しました: ${fileName}`);
+    }
+
+    // Export TXT
+    document.getElementById('btn-export-txt').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
+      if (rows.length === 0) {
+        showToast("記録データがありません", "error");
+        return;
+      }
+
+      let txt = `LiveScribe 音声文字起こしログ\n`;
+      txt += `ルーム: ${document.getElementById('current-room-badge').textContent}\n`;
+      txt += `日時: ${new Date().toLocaleString('ja-JP')}\n`;
+      txt += `--------------------------------------------------\n\n`;
+
+      rows.forEach(el => {
+        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
+        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
+        const body = el.querySelector('p')?.textContent || '';
+        txt += `[${time}] ${speaker}:\n${body}\n\n`;
+      });
+
+      downloadFile(txt, `gijiroku_${getFormattedDate()}.txt`, 'text/plain;charset=utf-8');
+    });
+
+    // Export CSV
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
+      if (rows.length === 0) {
+        showToast("記録データがありません", "error");
+        return;
+      }
+
+      let csv = '\uFEFF"タイムスタンプ","話者","発言内容"\n';
+      rows.forEach(el => {
+        const speaker = (el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '').replace(/"/g, '""');
+        const time = (el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '').replace(/"/g, '""');
+        const body = (el.querySelector('p')?.textContent || '').replace(/"/g, '""');
+        csv += `"${time}","${speaker}","${body}"\n`;
+      });
+
+      downloadFile(csv, `gijiroku_${getFormattedDate()}.csv`, 'text/csv;charset=utf-8');
+    });
+
+    // Export Markdown
+    document.getElementById('btn-export-md').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
+      if (rows.length === 0) {
+        showToast("記録データがありません", "error");
+        return;
+      }
+
+      let md = `# 会議音声文字起こし記録\n\n`;
+      md += `- **対象ルーム**: \`${document.getElementById('current-room-badge').textContent}\`\n`;
+      md += `- **出力日時**: \`${new Date().toLocaleString('ja-JP')}\`\n\n`;
+      md += `## 発言タイムライン\n\n`;
+
+      rows.forEach(el => {
+        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
+        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
+        const body = el.querySelector('p')?.textContent || '';
+        md += `\`${time}\` **${speaker}**\n> ${body}\n\n`;
+      });
+
+      downloadFile(md, `gijiroku_${getFormattedDate()}.md`, 'text/markdown;charset=utf-8');
+    });
+
+    function copyTextToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text);
+        }
+      }
+      document.body.removeChild(textArea);
+    }
+
+    document.getElementById('btn-copy-all').addEventListener('click', () => {
+      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
+      if (rows.length === 0) {
+        showToast("記録データがありません", "error");
+        return;
+      }
+      const fullText = rows.map(el => {
+        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
+        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
+        const body = el.querySelector('p')?.textContent || '';
+        return `[${time}] ${speaker}: ${body}`;
+      }).join('\n');
+
+      copyTextToClipboard(fullText);
+      showToast("全文ログをクリップボードにコピーしました");
+    });
+
+    // Gemini API Report Generator
+    const aiModal = document.getElementById('ai-modal');
+    const btnAiSummary = document.getElementById('btn-ai-summary');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const aiLoading = document.getElementById('ai-loading');
+    const aiLoadingText = document.getElementById('ai-loading-text');
+    const aiResultContent = document.getElementById('ai-result-content');
+    const aiModelTag = document.getElementById('ai-model-tag');
+    const btnCopySummary = document.getElementById('btn-copy-summary');
+    const btnDownloadSummary = document.getElementById('btn-download-summary');
+
+    async function fetchWithExponentialBackoff(url, options, maxRetries = 3) {
+      let delay = 1000;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const response = await fetch(url, options);
+          if (response.ok) return response;
+
+          // Throttled or transient server error: retry
+          if (response.status === 429 || response.status >= 500) {
+            if (attempt === maxRetries - 1) return response;
+          } else {
+            return response;
+          }
+        } catch (err) {
+          if (attempt === maxRetries - 1) throw err;
+        }
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+
+    async function resolveLatestGeminiModel(apiKey) {
+      const defaultLatestModel = "gemini-3-flash-preview";
+      try {
+        const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+        const response = await fetchWithExponentialBackoff(listUrl, { method: 'GET' }, 2);
+        if (response && response.ok) {
+          const data = await response.json();
+          if (data.models && Array.isArray(data.models)) {
+            const textModels = data.models
+              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+              .map(m => m.name.replace(/^models\//, ''))
+              .filter(name => name.includes('flash') && !name.includes('image') && !name.includes('live') && !name.includes('tts') && !name.includes('embedding'));
+
+            // Check if standard latest 3-flash is available
+            if (textModels.includes(defaultLatestModel)) {
+              return defaultLatestModel;
+            }
+            if (textModels.length > 0) {
+              // Sort descending to capture the highest version release available
+              textModels.sort((a, b) => b.localeCompare(a));
+              return textModels[0];
+            }
+          }
+        }
+      } catch (err) {
+        // Graceful fallback to defaultLatestModel on any network/catalog error
+      }
+      return defaultLatestModel;
+    }
+
+    btnAiSummary.addEventListener('click', async () => {
+      const rows = Array.from(document.querySelectorAll('#messages-list > div'));
+      if (rows.length === 0) {
+        showToast("先に音声録音またはメモを入力してください", "error");
+        return;
+      }
+
+      const conversationText = rows.map(el => {
+        const speaker = el.querySelector('span.text-\\[\\#0c0a08\\]')?.textContent || '話者';
+        const time = el.querySelector('span.text-\\[\\#6d6c6b\\]')?.textContent || '';
+        const body = el.querySelector('p')?.textContent || '';
+        return `[${time}] ${speaker}: ${body}`;
+      }).join('\n');
+
+      aiModal.classList.remove('hidden');
+      aiLoading.classList.remove('hidden');
+      aiLoadingText.textContent = "最新モデルを検出して接続中...";
+      aiResultContent.textContent = '';
+      aiModelTag.textContent = "POWERED BY GEMINI (接続中...)";
+
+      try {
+        const apiKey = "";
+        
+        // Dynamically resolve the latest Flash generation model
+        const activeModel = await resolveLatestGeminiModel(apiKey);
+        aiLoadingText.textContent = `最新モデル「${activeModel}」で議事録を作成中...`;
+        aiModelTag.textContent = `POWERED BY ${activeModel.toUpperCase()}`;
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
+
+        const systemPrompt = "あなたは優秀な役員秘書および議事録作成のエキスパートです。提供された会話ログを精査し、以下の構成で読みやすく構造化された日本語の議事録を作成してください。\n1. 会議概要\n2. 主な討議事項\n3. 決定事項\n4. 次回へのアクションアイテム（ToDo）\n箇条書きを用い、明瞭で簡潔なビジネス文書として出力してください。";
+        const userQuery = `以下の文字起こしログから、日本語の議事録・要約レポートを作成してください:\n\n${conversationText}`;
+
+        const payload = {
+          contents: [{ parts: [{ text: userQuery }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const response = await fetchWithExponentialBackoff(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }, 3);
+
+        const result = await response.json();
+        const candidate = result.candidates?.[0];
+        const generatedText = candidate?.content?.parts?.[0]?.text;
+
+        aiLoading.classList.add('hidden');
+        if (generatedText) {
+          aiResultContent.textContent = generatedText;
+          aiModelTag.textContent = `POWERED BY ${activeModel.toUpperCase()} (最新モデル使用)`;
+        } else {
+          aiResultContent.textContent = "AIレポートの生成に失敗しました。応答内容を確認してください。";
+        }
+      } catch (err) {
+        console.error("Gemini call error:", err);
+        aiLoading.classList.add('hidden');
+        aiResultContent.textContent = "レポートの生成処理中にエラーが発生しました。ネットワーク接続やAPI設定をご確認ください。";
+      }
+    });
+
+    btnCloseModal.addEventListener('click', () => {
+      aiModal.classList.add('hidden');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !aiModal.classList.contains('hidden')) {
+        aiModal.classList.add('hidden');
+      }
+    });
+
+    btnCopySummary.addEventListener('click', () => {
+      if (aiResultContent.textContent) {
+        copyTextToClipboard(aiResultContent.textContent);
+        showToast("議事録をクリップボードにコピーしました");
+      }
+    });
+
+    btnDownloadSummary.addEventListener('click', () => {
+      if (aiResultContent.textContent) {
+        downloadFile(aiResultContent.textContent, `gijiroku_summary_${getFormattedDate()}.txt`, 'text/plain;charset=utf-8');
+      }
+    });
+
+    let toastTimeout = null;
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastPrefix = document.getElementById('toast-prefix');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+
+      toastMsg.textContent = message;
+      if (type === 'error') {
+        toastPrefix.className = "w-2 h-2 rounded-full bg-[#ff4d4f]";
+      } else {
+        toastPrefix.className = "w-2 h-2 rounded-full bg-[#e4f222]";
+      }
+
+      toast.classList.remove('translate-y-6', 'opacity-0', 'pointer-events-none');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-6', 'opacity-0', 'pointer-events-none');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2600);
+    }
+  </script>
+</body>
+</html>
