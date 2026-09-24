@@ -871,10 +871,14 @@
         copyTextToClipboard(currentRoomId);
         showToast(`ルームID「${currentRoomId}」をコピーしました`);
       } else {
-        // Include the current view mode or set view=feed for participants
-        const shareUrl = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(currentRoomId)}&view=${encodeURIComponent(currentViewMode)}`;
-        copyTextToClipboard(shareUrl);
-        showToast("招待用ルームURLをコピーしました");
+        const newUrl = new URL(window.location.origin + window.location.pathname);
+        newUrl.searchParams.set('room', currentRoomId);
+        newUrl.searchParams.set('view', currentViewMode);
+        if (currentEncryptionKey) {
+          newUrl.searchParams.set('key', currentEncryptionKey);
+        }
+        copyTextToClipboard(newUrl.toString());
+        showToast("合言葉キー付きの招待URLをコピーしました");
       }
     });
 
